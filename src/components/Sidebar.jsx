@@ -46,7 +46,7 @@ export default function Sidebar({ user, handleLogout }) {
       allowed: can("tasks_read"),
     },
     {
-      name: "Permissions Matrix",
+      name: "Permissions ",
       path: "/admin/permissions", 
       icon: <ShieldPlus size={20} />,
       allowed: can("permissions_read"),

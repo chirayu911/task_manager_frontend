@@ -1,39 +1,28 @@
 import axios from 'axios';
 
-// Create axios instance with base configuration
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
 const API = axios.create({
-  baseURL: 'http://localhost:5000/api', // Adjust this to your backend port
-  withCredentials: true, // CRITICAL: Allows cookies (JWT) to be sent with every request
+  baseURL: BASE_URL,
+  withCredentials: true,
 });
 
-/**
- * Response Interceptor
- * This intercepts every response from the backend. 
- * If the backend returns a 401 (Unauthorized) or 403 (Forbidden), 
- * we can handle the UI logic here globally.
- */
+// api.js
 API.interceptors.response.use(
-  (response) => {
-    // If request is successful, simply return the response
-    return response;
-  },
+  (response) => response,
   (error) => {
-    const { status } = error.response || {};
+    const { status, config } = error.response || {};
 
-    if (status === 401) {
-      // Scenario: Token expired or user not logged in
-      console.warn("Unauthorized access - Redirecting to login...");
-      // Optional: window.location.href = '/'; 
+    // ⭐ Ignore 401s for the session check route
+    if (status === 401 && config.url.includes('/auth/me')) {
+      return Promise.reject(error); 
     }
 
-    if (status === 403) {
-      // Scenario: User is logged in but lacks specific permission for this API route
-      console.error("Forbidden: You do not have permission for this action.");
-      // You could trigger a global toast notification here
+    if (status === 401) {
+      console.warn("Session expired - Redirecting to login...");
     }
 
     return Promise.reject(error);
   }
 );
-
 export default API;
