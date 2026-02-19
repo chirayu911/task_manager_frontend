@@ -25,7 +25,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState(null);
 
-  // ---------------- CHECK LOGIN ----------------
+  // ---------------- 1. SESSION CHECK ----------------
+  // Ensures the app knows if a user is logged in before rendering routes
   useEffect(() => {
     const checkLoggedIn = async () => {
       try {
@@ -35,14 +36,14 @@ export default function App() {
         console.error("Session expired or not logged in");
         setUser(null);
       } finally {
-        // ⭐ CRITICAL: This ensures the "Loading..." screen disappears
         setLoading(false);
       }
     };
     checkLoggedIn();
   }, []);
 
-  // ---------------- SOCKET ----------------
+  // ---------------- 2. REAL-TIME SOCKET ----------------
+  // Listens for permission changes to update user state instantly
   useEffect(() => {
     if (!user?._id) return;
 
@@ -65,7 +66,7 @@ export default function App() {
     return () => newSocket.disconnect();
   }, [user?._id]);
 
-  // ---------------- LOGOUT ----------------
+  // ---------------- 3. LOGOUT HANDLER ----------------
   const handleLogout = async () => {
     try {
       await API.post("/auth/logout");
@@ -77,12 +78,12 @@ export default function App() {
     }
   };
 
-  // ---------------- GATEKEEPING LOGIC ----------------
-  // Normalize permissions and role for consistent checks
+  // ---------------- 4. AUTH HELPERS ----------------
   const perms = user?.permissions || [];
   const roleName = typeof user?.role === 'object' ? user.role?.name : user?.role;
   const isAdmin = roleName === "admin" || perms.includes("*");
 
+  // ---------------- 5. LOADING SCREEN ----------------
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-gray-50">
@@ -94,11 +95,11 @@ export default function App() {
     );
   }
 
-  // ---------------- PROTECTED ROUTE COMPONENT ----------------
+  // ---------------- 6. PROTECTED ROUTE WRAPPER ----------------
   const ProtectedRoute = ({ children, requiredPermission }) => {
     if (!user) return <Navigate to="/" />;
 
-    // ✅ Admin always allowed
+    // Admin bypass: Admins can see everything
     if (isAdmin) {
       return (
         <MainLayout user={user} handleLogout={handleLogout}>
@@ -107,9 +108,8 @@ export default function App() {
       );
     }
 
-    // ✅ Staff permission check
+    // Permission check for Staff
     if (requiredPermission && !perms.includes(requiredPermission)) {
-      // Redirect to their own dashboard if unauthorized
       return <Navigate to="/staff" />;
     }
 
@@ -123,7 +123,7 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        {/* LOGIN */}
+        {/* PUBLIC ACCESS / LOGIN */}
         <Route
           path="/"
           element={
@@ -139,7 +139,7 @@ export default function App() {
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
         <Route path="/staff" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
 
-        {/* TASKS */}
+        {/* TASKS MANAGEMENT */}
         <Route path="/tasks" element={<ProtectedRoute requiredPermission="tasks_read"><TaskPage user={user} /></ProtectedRoute>} />
         <Route path="/tasks/create" element={<ProtectedRoute requiredPermission="tasks_create"><TaskFormPage user={user} /></ProtectedRoute>} />
         <Route path="/tasks/edit/:id" element={<ProtectedRoute requiredPermission="tasks_update"><TaskFormPage user={user} /></ProtectedRoute>} />
@@ -151,6 +151,7 @@ export default function App() {
 
         {/* ROLE MANAGEMENT */}
         <Route path="/admin/roles" element={<ProtectedRoute requiredPermission="roles_read"><RolePage user={user} /></ProtectedRoute>} />
+        <Route path="/admin/roles/create" element={<ProtectedRoute requiredPermission="roles_create"><RolePermissionMatrix user={user} /></ProtectedRoute>} />
         <Route path="/admin/roles/:id/permissions" element={<ProtectedRoute requiredPermission="roles_update"><RolePermissionMatrix user={user} /></ProtectedRoute>} />
         <Route path="/admin/roles/edit/:id" element={<ProtectedRoute requiredPermission="roles_update"><RolePermissionMatrix user={user} /></ProtectedRoute>} />
 
@@ -159,40 +160,14 @@ export default function App() {
         <Route path="/admin/permissions/create" element={<ProtectedRoute requiredPermission="permissions_create"><PermissionFormPage /></ProtectedRoute>} />
         <Route path="/admin/permissions/update/:id" element={<ProtectedRoute requiredPermission="permissions_update"><PermissionFormPage /></ProtectedRoute>} />
 
-     
+        {/* TASK STATUS MANAGEMENT */}
+        <Route path="/admin/task-status" element={<ProtectedRoute requiredPermission="roles_update"><TaskStatusPage user={user} /></ProtectedRoute>} />
+        <Route path="/admin/task-status/create" element={<ProtectedRoute requiredPermission="roles_update"><TaskStatusFormPage user={user} /></ProtectedRoute>} />
+        <Route path="/admin/task-status/edit/:id" element={<ProtectedRoute requiredPermission="roles_update"><TaskStatusFormPage user={user} /></ProtectedRoute>} />
 
-
-          {/* TASK STATUS MANAGEMENT ROUTES */}
-          <Route
-            path="/admin/task-status"
-            element={
-              <ProtectedRoute requiredPermission="roles_update">
-                <TaskStatusPage user={user} />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/task-status/create"
-            element={
-              <ProtectedRoute requiredPermission="roles_update">
-                <TaskStatusFormPage user={user} />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/admin/task-status/edit/:id"
-            element={
-              <ProtectedRoute requiredPermission="roles_update">
-                <TaskStatusFormPage user={user} />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* FALLBACK */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+        {/* GLOBAL FALLBACK */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
     </Router>
   );
 }

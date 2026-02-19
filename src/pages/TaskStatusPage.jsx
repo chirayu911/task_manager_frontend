@@ -1,15 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Plus, Edit, Trash2, Loader, CheckCircle2, XCircle } from 'lucide-react';
+import { Settings, Loader, CheckCircle2, XCircle } from 'lucide-react';
 import API from '../api';
 import { toast } from 'react-toastify';
+import { EditButton, DeleteButton } from '../components/TableButtons';
+import { CreateButton, SearchBar } from '../components/PageHeader';
+import Pagination from '../components/Pagination';
 
 export default function TaskStatusPage({ user }) {
   const [statuses, setStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // ✅ Safety Guard: Normalize role and permissions check
+  // Search and Pagination States
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
+  // Normalize role and permissions check
   const roleName = typeof user?.role === 'object' ? user.role?.name : user?.role;
   const perms = user?.permissions || [];
   const isAdmin = roleName === 'admin' || perms.includes('*');
@@ -18,7 +26,6 @@ export default function TaskStatusPage({ user }) {
   const can = (perm) => isAdmin || perms.includes(perm);
 
   useEffect(() => {
-    // Only fetch if session is validated
     if (user) {
       fetchStatuses();
     }
@@ -36,7 +43,6 @@ export default function TaskStatusPage({ user }) {
     }
   };
 
-  // ✅ New Delete Function
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this status? This may affect tasks currently using it.")) return;
 
@@ -49,7 +55,17 @@ export default function TaskStatusPage({ user }) {
     }
   };
 
-  // ✅ Critical Guard: Do not render if user is not loaded
+  // Logic: Search Filter
+  const filteredStatuses = statuses.filter(s => 
+    s.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Logic: Pagination
+  const currentTableData = filteredStatuses.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (!user) return null;
 
   if (loading) return (
@@ -60,7 +76,7 @@ export default function TaskStatusPage({ user }) {
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
             <Settings className="text-blue-600" /> Task Statuses
@@ -68,28 +84,33 @@ export default function TaskStatusPage({ user }) {
           <p className="text-sm text-gray-500 mt-1">Manage the available stages for your team's workflow.</p>
         </div>
         
-        {can('roles_update') && (
-          <button 
-            onClick={() => navigate("/admin/task-status/create")}
-            className="bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition shadow-lg shadow-blue-100 font-bold"
-          >
-            <Plus size={18} /> Add Status
-          </button>
-        )}
+        <div className="flex w-full md:w-auto gap-3">
+          <SearchBar 
+            value={searchTerm} 
+            onChange={(val) => { setSearchTerm(val); setCurrentPage(1); }} 
+            placeholder="Search statuses..." 
+          />
+          {can('roles_update') && (
+            <CreateButton 
+              onClick={() => navigate("/admin/task-status/create")} 
+              label="Add Status" 
+            />
+          )}
+        </div>
       </div>
 
       <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+          <thead className="bg-gray-50/50 border-b border-gray-100">
+            <tr className="text-xs font-bold text-gray-400 uppercase tracking-widest">
               <th className="px-6 py-5">Status Name</th>
               <th className="px-6 py-4">System Status</th>
               <th className="px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {statuses.length > 0 ? (
-              statuses.map((s) => (
+            {currentTableData.length > 0 ? (
+              currentTableData.map((s) => (
                 <tr key={s._id} className="hover:bg-gray-50/50 transition-colors group">
                   <td className="px-6 py-5 font-bold text-gray-800">{s.name}</td>
                   <td className="px-6 py-4">
@@ -103,23 +124,11 @@ export default function TaskStatusPage({ user }) {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
+                    <div className="flex justify-end gap-1">
                       {can('roles_update') && (
                         <>
-                          <button 
-                            onClick={() => navigate(`/admin/task-status/edit/${s._id}`)}
-                            className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-xl transition-all"
-                            title="Edit Status"
-                          >
-                            <Edit size={18} />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(s._id)}
-                            className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-xl transition-all"
-                            title="Delete Status"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                          <EditButton onClick={() => navigate(`/admin/task-status/edit/${s._id}`)} />
+                          <DeleteButton onClick={() => handleDelete(s._id)} />
                         </>
                       )}
                     </div>
@@ -129,12 +138,19 @@ export default function TaskStatusPage({ user }) {
             ) : (
               <tr>
                 <td colSpan="3" className="px-6 py-20 text-center text-gray-400 italic">
-                  No statuses found. Click "Add Status" to create one.
+                  No statuses found matching your search.
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+
+        <Pagination 
+          currentPage={currentPage} 
+          totalItems={filteredStatuses.length} 
+          itemsPerPage={itemsPerPage} 
+          onPageChange={setCurrentPage} 
+        />
       </div>
     </div>
   );
