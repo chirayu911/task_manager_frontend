@@ -1,25 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ShieldPlus, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api';
 import { toast } from 'react-toastify';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
-import Pagination from '../components/Pagination';
+import TableControls from '../components/TableControls'; // ⭐ Updated import
 
 export default function PermissionPage({ user }) {
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(5); // ⭐ Added dynamic limit state
   const navigate = useNavigate();
 
   const roleName = typeof user?.role === 'object' ? user.role?.name : user?.role;
   const perms = user?.permissions || [];
   const isAdmin = roleName === 'admin' || perms.includes('*');
 
-  const can = (perm) => isAdmin || perms.includes(perm);
+  // ⭐ Permission helper wrapped in useCallback for performance
+  const can = useCallback((perm) => isAdmin || perms.includes(perm), [isAdmin, perms]);
 
   useEffect(() => { 
     if (user) fetchPermissions(); 
@@ -41,27 +42,35 @@ export default function PermissionPage({ user }) {
     if (!window.confirm("Permanently delete this permission? This may break existing roles.")) return;
     try {
       await API.delete(`/permissions/${id}`);
-      setPermissions(permissions.filter(p => p._id !== id));
+      setPermissions(prev => prev.filter(p => p._id !== id));
       toast.success("Permission deleted");
     } catch (err) { 
       toast.error("Error deleting permission"); 
     }
   };
 
-  // Filter Logic
-  const filteredPermissions = permissions.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.value.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ⭐ Filter Logic optimized with useMemo
+  const filteredPermissions = useMemo(() => {
+    return permissions.filter(p => 
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.value.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [permissions, searchTerm]);
 
-  // Pagination Logic
-  const currentTableData = filteredPermissions.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // ⭐ Pagination Logic optimized with useMemo
+  const currentTableData = useMemo(() => {
+    return filteredPermissions.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    );
+  }, [filteredPermissions, currentPage, itemsPerPage]);
 
   if (!user) return null;
-  if (loading) return <div className="flex justify-center p-20"><Loader className="animate-spin text-purple-600" size={40} /></div>;
+  if (loading) return (
+    <div className="flex justify-center p-20">
+      <Loader className="animate-spin text-purple-600" size={40} />
+    </div>
+  );
 
   return (
     <div className="p-8 max-w-6xl mx-auto min-h-screen">
@@ -75,7 +84,10 @@ export default function PermissionPage({ user }) {
         <div className="flex w-full md:w-auto gap-3">
           <SearchBar 
             value={searchTerm} 
-            onChange={(val) => { setSearchTerm(val); setCurrentPage(1); }} 
+            onChange={(val) => { 
+              setSearchTerm(val); 
+              setCurrentPage(1); // ⭐ Reset to page 1 on search
+            }} 
             placeholder="Search name or slug..." 
           />
           {can('permissions_create') && (
@@ -108,19 +120,29 @@ export default function PermissionPage({ user }) {
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex justify-end gap-1">
-                    {can('permissions_update') && <EditButton onClick={() => navigate(`/admin/permissions/update/${perm._id}`)} />}
-                    {can('permissions_delete') && <DeleteButton onClick={() => deletePermission(perm._id)} />}
+                    {can('permissions_update') && (
+                      <EditButton onClick={() => navigate(`/admin/permissions/update/${perm._id}`)} />
+                    )}
+                    {can('permissions_delete') && (
+                      <DeleteButton onClick={() => deletePermission(perm._id)} />
+                    )}
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <Pagination 
+
+        {/* ⭐ Integrated Table Controls */}
+        <TableControls 
           currentPage={currentPage} 
           totalItems={filteredPermissions.length} 
           itemsPerPage={itemsPerPage} 
           onPageChange={setCurrentPage} 
+          onLimitChange={(newLimit) => {
+            setItemsPerPage(newLimit);
+            setCurrentPage(1); // ⭐ Reset to page 1 when entries per page change
+          }}
         />
       </div>
     </div>

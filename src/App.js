@@ -25,6 +25,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState(null);
 
+  // ⭐ Dynamic Socket URL for Dev Tunnel support
   const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || "http://localhost:5000";
 
   // ---------------- 1. SILENT SESSION CHECK ----------------
@@ -34,7 +35,7 @@ export default function App() {
         const { data } = await API.get("/auth/me");
         setUser(data);
       } catch (error) {
-        // ⭐ Silent fail: 401 is expected if not logged in yet
+        // Silent fail: 401 is expected if not logged in yet
         setUser(null);
       } finally {
         setLoading(false);
@@ -47,6 +48,7 @@ export default function App() {
   useEffect(() => {
     if (!user?._id) return;
 
+    // Establish WebSocket connection with credentials
     const newSocket = io(SOCKET_URL, {
       auth: { userId: user._id },
       transports: ["websocket"],
@@ -55,6 +57,7 @@ export default function App() {
 
     setSocket(newSocket);
 
+    // Global listener for permission updates
     newSocket.on("permissionsUpdated", async () => {
       try {
         const { data } = await API.get("/auth/me");
@@ -88,7 +91,7 @@ export default function App() {
       <div className="h-screen w-full flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="font-bold text-gray-600 animate-pulse text-sm uppercase">Loading Session...</p>
+          <p className="font-bold text-gray-600 animate-pulse text-sm uppercase">Initializing Session...</p>
         </div>
       </div>
     );
@@ -96,15 +99,12 @@ export default function App() {
 
   // ---------------- 4. PROTECTED ROUTE WRAPPER ----------------
   const ProtectedRoute = ({ children, requiredPermission }) => {
-    // If not logged in, redirect to the landing/login page
     if (!user) return <Navigate to="/" />;
 
-    // Admin bypass
     if (isAdmin) {
       return <MainLayout user={user} handleLogout={handleLogout}>{children}</MainLayout>;
     }
 
-    // Staff permission check
     if (requiredPermission && !perms.includes(requiredPermission)) {
       return <Navigate to="/staff" />;
     }
@@ -115,7 +115,7 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        {/* ⭐ Login/Redirect Route */}
+        {/* PUBLIC ACCESS / LOGIN */}
         <Route
           path="/"
           element={
@@ -131,8 +131,8 @@ export default function App() {
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
         <Route path="/staff" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
 
-        {/* Task Management */}
-        <Route path="/tasks" element={<ProtectedRoute requiredPermission="tasks_read"><TaskPage user={user} /></ProtectedRoute>} />
+        {/* Task Management (Passed socket for real-time updates) */}
+        <Route path="/tasks" element={<ProtectedRoute requiredPermission="tasks_read"><TaskPage user={user} socket={socket} /></ProtectedRoute>} />
         <Route path="/tasks/create" element={<ProtectedRoute requiredPermission="tasks_create"><TaskFormPage user={user} /></ProtectedRoute>} />
         <Route path="/tasks/edit/:id" element={<ProtectedRoute requiredPermission="tasks_update"><TaskFormPage user={user} /></ProtectedRoute>} />
 
@@ -145,9 +145,13 @@ export default function App() {
         <Route path="/admin/roles" element={<ProtectedRoute requiredPermission="roles_read"><RolePage user={user} /></ProtectedRoute>} />
         <Route path="/admin/roles/create" element={<ProtectedRoute requiredPermission="roles_create"><RolePermissionMatrix user={user} /></ProtectedRoute>} />
         <Route path="/admin/roles/edit/:id" element={<ProtectedRoute requiredPermission="roles_update"><RolePermissionMatrix user={user} /></ProtectedRoute>} />
-        <Route path="/admin/permissions" element={<ProtectedRoute requiredPermission="roles_read"><PermissionPage user={user} /></ProtectedRoute>} />
+        
+        {/* Permission Management Routes */}
+        <Route path="/admin/permissions" element={<ProtectedRoute requiredPermission="permissions_read"><PermissionPage user={user} /></ProtectedRoute>} />
+        <Route path="/admin/permissions/create" element={<ProtectedRoute requiredPermission="permissions_create"><PermissionFormPage user={user} /></ProtectedRoute>} />
+        <Route path="/admin/permissions/update/:id" element={<ProtectedRoute requiredPermission="permissions_update"><PermissionFormPage user={user} /></ProtectedRoute>} />
 
-        {/* Task Status */}
+        {/* Task Status Management */}
         <Route path="/admin/task-status" element={<ProtectedRoute requiredPermission="roles_update"><TaskStatusPage user={user} /></ProtectedRoute>} />
         <Route path="/admin/task-status/create" element={<ProtectedRoute requiredPermission="roles_update"><TaskStatusFormPage user={user} /></ProtectedRoute>} />
         <Route path="/admin/task-status/edit/:id" element={<ProtectedRoute requiredPermission="roles_update"><TaskStatusFormPage user={user} /></ProtectedRoute>} />

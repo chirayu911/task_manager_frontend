@@ -188,7 +188,7 @@ export default function TaskFormPage({ user }) {
             <div className="relative h-40 border-2 border-dashed border-purple-200 rounded-2xl hover:bg-purple-50 transition-colors flex flex-col items-center justify-center text-purple-400 group cursor-pointer">
               <input type="file" accept="video/*" onChange={handleVideoChange} className="absolute inset-0 opacity-0 cursor-pointer" />
               <Video size={32} className="mb-2 group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-bold uppercase tracking-widest">Replace Video</span>
+              {/* <span className="text-[10px] font-bold uppercase tracking-widest">Replace Video</span> */}
             </div>
             {(existingVideo || videoPreview) && (
               <div className="group relative h-40 rounded-2xl overflow-hidden bg-black border shadow-lg">

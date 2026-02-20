@@ -2,37 +2,35 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Loader, Save, ArrowLeft, ShieldPlus } from "lucide-react";
 import API from "../api";
+import { toast } from "react-toastify"; // ⭐ Added missing import
 
 export default function RolePermissionMatrix() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isEditMode = Boolean(id); // Check if we are editing or creating
+  const isEditMode = Boolean(id);
 
   const [roleName, setRoleName] = useState("");
   const [resources, setResources] = useState([]);
-  const [selectedPerms, setSelectedPerms] = useState([]);
+  const [selectedPerms, setSelectedPerms] = useState([]); // Use this consistent name
   const [loading, setLoading] = useState(true);
 
   const actions = ["read", "create", "update", "delete"];
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-
-      // 1. Fetch all available permissions/resources for the matrix rows
       const permRes = await API.get("/permissions");
       setResources(permRes.data);
 
-      // 2. If in Edit Mode, fetch existing role data
       if (isEditMode) {
         const roleRes = await API.get(`/roles/${id}`);
         const role = roleRes.data;
         setRoleName(role.name);
-        // Ensure permissions are handled as an array of IDs or slugs based on your Model
         setSelectedPerms(role.permissions || []);
       }
 
@@ -89,28 +87,28 @@ export default function RolePermissionMatrix() {
 
   // -------- SAVE / CREATE --------
   const saveChanges = async () => {
-    if (!roleName.trim()) {
-      alert("Please enter a role name.");
-      return;
-    }
+    if (!roleName) return toast.warning("Role name is required"); //
 
     try {
+      setLoading(true);
       const payload = {
-        name: roleName.toLowerCase(), // Store as lowercase for consistency
-        permissions: selectedPerms,
+        name: roleName,
+        permissions: selectedPerms // ⭐ Fixed: Changed from selectedPermissions
       };
 
       if (isEditMode) {
-        await API.put(`/roles/${id}`, payload);
-        alert("Role Updated!");
+        await API.put(`/roles/${id}`, payload); // ⭐ Fixed: Changed from roleId to id
       } else {
-        await API.post(`/roles`, payload);
-        alert("New Role Created!");
+        await API.post("/roles", payload);
       }
-
+      
+      toast.success(isEditMode ? "Role updated!" : "Role created!"); //
       navigate("/admin/roles");
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to save.");
+      console.error("Save Error:", err);
+      toast.error(err.response?.data?.message || "Internal Server Error"); //
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -148,9 +146,11 @@ export default function RolePermissionMatrix() {
 
         <button
           onClick={saveChanges}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl flex items-center gap-2 shadow-lg transition-all font-bold"
+          disabled={loading}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl flex items-center gap-2 shadow-lg transition-all font-bold disabled:opacity-50"
         >
-          <Save size={20} /> {isEditMode ? "Update Permissions" : "Create Role"}
+          {loading ? <Loader className="animate-spin" size={20}/> : <Save size={20} />}
+          {isEditMode ? "Update Permissions" : "Create Role"}
         </button>
       </div>
 

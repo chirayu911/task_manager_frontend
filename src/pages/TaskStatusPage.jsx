@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Settings, Loader, CheckCircle2, XCircle } from 'lucide-react';
 import API from '../api';
 import { toast } from 'react-toastify';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
-import Pagination from '../components/Pagination';
+import TableControls from '../components/TableControls'; // ⭐ Integrated TableControls
 
 export default function TaskStatusPage({ user }) {
   const [statuses, setStatuses] = useState([]);
@@ -15,23 +15,17 @@ export default function TaskStatusPage({ user }) {
   // Search and Pagination States
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [itemsPerPage, setItemsPerPage] = useState(5); // ⭐ Integrated dynamic limit
 
   // Normalize role and permissions check
   const roleName = typeof user?.role === 'object' ? user.role?.name : user?.role;
   const perms = user?.permissions || [];
   const isAdmin = roleName === 'admin' || perms.includes('*');
 
-  // Permission helper
-  const can = (perm) => isAdmin || perms.includes(perm);
+  // Permission helper optimized with useCallback
+  const can = useCallback((perm) => isAdmin || perms.includes(perm), [isAdmin, perms]);
 
-  useEffect(() => {
-    if (user) {
-      fetchStatuses();
-    }
-  }, [user]);
-
-  const fetchStatuses = async () => {
+  const fetchStatuses = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await API.get('/task-statuses');
@@ -41,30 +35,40 @@ export default function TaskStatusPage({ user }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchStatuses();
+    }
+  }, [user, fetchStatuses]);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this status? This may affect tasks currently using it.")) return;
 
     try {
       await API.delete(`/task-statuses/${id}`);
-      setStatuses(statuses.filter(s => s._id !== id));
+      setStatuses(prev => prev.filter(s => s._id !== id));
       toast.success("Status deleted successfully");
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to delete status");
     }
   };
 
-  // Logic: Search Filter
-  const filteredStatuses = statuses.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ⭐ Filter Logic optimized with useMemo
+  const filteredStatuses = useMemo(() => {
+    return statuses.filter(s => 
+      s.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [statuses, searchTerm]);
 
-  // Logic: Pagination
-  const currentTableData = filteredStatuses.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // ⭐ Pagination Logic optimized with useMemo
+  const currentTableData = useMemo(() => {
+    return filteredStatuses.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    );
+  }, [filteredStatuses, currentPage, itemsPerPage]);
 
   if (!user) return null;
 
@@ -87,7 +91,10 @@ export default function TaskStatusPage({ user }) {
         <div className="flex w-full md:w-auto gap-3">
           <SearchBar 
             value={searchTerm} 
-            onChange={(val) => { setSearchTerm(val); setCurrentPage(1); }} 
+            onChange={(val) => { 
+              setSearchTerm(val); 
+              setCurrentPage(1); // ⭐ Reset to page 1 on search
+            }} 
             placeholder="Search statuses..." 
           />
           {can('roles_update') && (
@@ -145,11 +152,16 @@ export default function TaskStatusPage({ user }) {
           </tbody>
         </table>
 
-        <Pagination 
+        {/* ⭐ Integrated Table Controls */}
+        <TableControls 
           currentPage={currentPage} 
           totalItems={filteredStatuses.length} 
           itemsPerPage={itemsPerPage} 
           onPageChange={setCurrentPage} 
+          onLimitChange={(newLimit) => {
+            setItemsPerPage(newLimit);
+            setCurrentPage(1); // ⭐ Reset to page 1 when limit changes
+          }}
         />
       </div>
     </div>

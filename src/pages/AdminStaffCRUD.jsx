@@ -1,63 +1,69 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Mail, Shield, Loader } from 'lucide-react';
 import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
-import Pagination from '../components/Pagination';
+import TableControls from '../components/TableControls'; // ⭐ Updated import
 
 export default function AdminStaffCRUD({ user }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Logic: Search & Pagination States
+  // Search & Pagination States
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [itemsPerPage, setItemsPerPage] = useState(5); // ⭐ Added dynamic limit state
 
-  // Helper for inline permission checks
-  const can = (perm) => {
+  const can = useCallback((perm) => {
     const perms = user?.permissions || [];
     const roleName = typeof user?.role === 'object' ? user.role?.name : user?.role;
     if (roleName === 'admin' || perms.includes('*')) return true;
     return perms.includes(perm);
-  };
+  }, [user]);
 
-  useEffect(() => { fetchUsers(); }, []);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
+      setLoading(true);
       const { data } = await API.get('/users');
       setUsers(data);
-    } catch (err) { 
-      console.error("Error fetching users", err); 
-    } finally { 
-      setLoading(false); 
+    } catch (err) {
+      console.error("Error fetching users", err);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure? This will permanently remove the staff member.")) return;
     try {
       await API.delete(`/users/${id}`);
-      setUsers(users.filter(u => u._id !== id));
-    } catch (err) { 
-      alert("Failed to delete user"); 
+      setUsers(prev => prev.filter(u => u._id !== id));
+    } catch (err) {
+      alert("Failed to delete user");
     }
   };
 
-  // Logic: Search Filter (Checks Name and Email)
-  const filteredUsers = users.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Logic: Search Filter
+  const filteredUsers = useMemo(() => {
+    return users.filter(u =>
+      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [users, searchTerm]);
 
-  // Logic: Pagination
-  const currentTableData = filteredUsers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Logic: Pagination Slicing
+  const currentTableData = useMemo(() => {
+    return filteredUsers.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    );
+  }, [filteredUsers, currentPage, itemsPerPage]);
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center p-20 min-h-[400px]">
@@ -68,7 +74,6 @@ export default function AdminStaffCRUD({ user }) {
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      {/* Page Header with Search and Create Button */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
@@ -80,7 +85,10 @@ export default function AdminStaffCRUD({ user }) {
         <div className="flex w-full md:w-auto gap-3">
           <SearchBar 
             value={searchTerm} 
-            onChange={(val) => { setSearchTerm(val); setCurrentPage(1); }} 
+            onChange={(val) => { 
+              setSearchTerm(val); 
+              setCurrentPage(1); // Reset to page 1 on search
+            }} 
             placeholder="Search by name or email..." 
           />
           {can('staff_create') && (
@@ -141,12 +149,16 @@ export default function AdminStaffCRUD({ user }) {
           </tbody>
         </table>
 
-        {/* Reusable Pagination Component */}
-        <Pagination 
+        {/* ⭐ Integrated Table Controls (Pagination + Limit) */}
+        <TableControls 
           currentPage={currentPage} 
           totalItems={filteredUsers.length} 
           itemsPerPage={itemsPerPage} 
           onPageChange={setCurrentPage} 
+          onLimitChange={(newLimit) => {
+            setItemsPerPage(newLimit);
+            setCurrentPage(1); // Reset to page 1 when limit changes to avoid empty views
+          }}
         />
       </div>
     </div>

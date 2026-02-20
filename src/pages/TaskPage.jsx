@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Loader, CheckCircle, User as UserIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api';
 import { toast } from 'react-toastify';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
-import Pagination from '../components/Pagination';
+import TableControls from '../components/TableControls'; // ⭐ Updated import
 
 export default function TaskPage({ user }) {
   const [tasks, setTasks] = useState([]);
@@ -16,7 +16,7 @@ export default function TaskPage({ user }) {
   // Search & Pagination States
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(5); // ⭐ Added dynamic limit state
 
   const navigate = useNavigate();
 
@@ -45,7 +45,6 @@ export default function TaskPage({ user }) {
       }
       setTasks(filtered);
 
-      // ⭐ Updated: Fetch staff list if user is admin OR has tasks_update permission
       if (isAdmin || can('tasks_update')) {
         const { data: usersData } = await API.get('/users');
         setStaffList(usersData.filter(u => (u.role?.name || u.role) !== 'customer'));
@@ -59,16 +58,20 @@ export default function TaskPage({ user }) {
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
-  // Logic: Search & Filter
-  const filteredTasks = tasks.filter(task => 
-    task.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ⭐ Logic: Search & Filter optimized with useMemo
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => 
+      task.title.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [tasks, searchTerm]);
 
-  // Logic: Pagination
-  const currentTableData = filteredTasks.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // ⭐ Logic: Pagination Slicing optimized with useMemo
+  const currentTableData = useMemo(() => {
+    return filteredTasks.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    );
+  }, [filteredTasks, currentPage, itemsPerPage]);
 
   const handleInlineUpdate = async (taskId, field, value) => {
     try {
@@ -105,7 +108,14 @@ export default function TaskPage({ user }) {
           <p className="text-gray-500 text-sm">Monitor team progress and status changes</p>
         </div>
         <div className="flex w-full md:w-auto gap-3">
-          <SearchBar value={searchTerm} onChange={(val) => { setSearchTerm(val); setCurrentPage(1); }} placeholder="Search tasks by title..." />
+          <SearchBar 
+            value={searchTerm} 
+            onChange={(val) => { 
+              setSearchTerm(val); 
+              setCurrentPage(1); // Reset to page 1 on search
+            }} 
+            placeholder="Search tasks by title..." 
+          />
           {can('tasks_create') && (
             <CreateButton onClick={() => navigate("/tasks/create")} label="Add Task" />
           )}
@@ -127,7 +137,6 @@ export default function TaskPage({ user }) {
               <tr key={task._id} className="hover:bg-gray-50/50 transition-colors">
                 <td className="px-6 py-4 font-medium text-gray-800">{task.title}</td>
                 <td className="px-6 py-4">
-                  {/* ⭐ Updated Logic: Dropdown visible for Admin OR users with tasks_update permission */}
                   {isAdmin || can('tasks_update') ? (
                     <select 
                       value={task.assignedTo?._id || task.assignedTo || ''} 
@@ -139,7 +148,7 @@ export default function TaskPage({ user }) {
                     </select>
                   ) : (
                     <div className="flex items-center gap-2 text-sm text-gray-600">
-                       <UserIcon size={14} className="text-blue-500" /> {task.assignedTo?.name || "Unassigned"}
+                       <UserIcon size={1} className="text-blue-500" /> {task.assignedTo?.name || "Unassigned"}
                     </div>
                   )}
                 </td>
@@ -164,11 +173,16 @@ export default function TaskPage({ user }) {
           </tbody>
         </table>
         
-        <Pagination 
+        {/* ⭐ Integrated Table Controls */}
+        <TableControls 
           currentPage={currentPage} 
           totalItems={filteredTasks.length} 
           itemsPerPage={itemsPerPage} 
           onPageChange={setCurrentPage} 
+          onLimitChange={(newLimit) => {
+            setItemsPerPage(newLimit);
+            setCurrentPage(1); // Reset to page 1 on limit change
+          }}
         />
       </div>
     </div>

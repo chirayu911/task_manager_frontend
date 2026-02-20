@@ -28,25 +28,25 @@ export default function Sidebar({ user, handleLogout }) {
       allowed: true, // Everyone sees their dashboard
     },
     {
-      name: "Manage Staff",
+      name: "Staff",
       path: "/admin/staff", 
       icon: <Users size={20} />,
       allowed: can("staff_read"), // Dynamic check
     },
     {
-      name: "Manage Roles",
+      name: "Roles",
       path: "/admin/roles", 
       icon: <Shield size={20} />,
       allowed: can("roles_read"),
     },
     {
-      name: "Manage Tasks",
+      name: "Tasks",
       path: "/tasks",
       icon: <ClipboardList size={20} />,
       allowed: can("tasks_read"),
     },
     {
-      name: "Permissions ",
+      name: "Permissions",
       path: "/admin/permissions", 
       icon: <ShieldPlus size={20} />,
       allowed: can("permissions_read"),
