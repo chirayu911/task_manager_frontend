@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import React, { useState, useEffect, useMemo } from "react"; // ⭐ Added useMemo
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom"; 
 import API from "./api";
 import { io } from "socket.io-client";
 
@@ -24,8 +24,8 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState(null);
+  const navigate = useNavigate(); 
 
-  // ⭐ Dynamic Socket URL for Dev Tunnel support
   const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || "http://localhost:5000";
 
   // ---------------- 1. SILENT SESSION CHECK ----------------
@@ -35,7 +35,6 @@ export default function App() {
         const { data } = await API.get("/auth/me");
         setUser(data);
       } catch (error) {
-        // Silent fail: 401 is expected if not logged in yet
         setUser(null);
       } finally {
         setLoading(false);
@@ -48,7 +47,6 @@ export default function App() {
   useEffect(() => {
     if (!user?._id) return;
 
-    // Establish WebSocket connection with credentials
     const newSocket = io(SOCKET_URL, {
       auth: { userId: user._id },
       transports: ["websocket"],
@@ -57,7 +55,6 @@ export default function App() {
 
     setSocket(newSocket);
 
-    // Global listener for permission updates
     newSocket.on("permissionsUpdated", async () => {
       try {
         const { data } = await API.get("/auth/me");
@@ -72,19 +69,28 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await API.post("/auth/logout");
-      socket?.disconnect();
-      setUser(null);
-      window.location.href = "/";
+      await API.post('/auth/logout'); 
+      setUser(null); 
+      localStorage.removeItem('user'); 
+      navigate('/'); 
     } catch (err) {
-      console.error("Logout failed");
+      console.error("Logout error", err);
     }
   };
 
-  // ---------------- 3. AUTH HELPERS ----------------
-  const perms = user?.permissions || [];
-  const roleName = typeof user?.role === 'object' ? user.role?.name : user?.role;
-  const isAdmin = roleName === "admin" || perms.includes("*");
+  // ---------------- 3. AUTH HELPERS (ROBUST FIX) ----------------
+  // We use useMemo to ensure these values are stable and handle object-based roles
+  const roleName = useMemo(() => {
+    if (!user?.role) return null;
+    return typeof user.role === 'object' ? user.role.name : user.role;
+  }, [user]);
+
+  const perms = useMemo(() => user?.permissions || [], [user]);
+
+  // isAdmin now correctly checks the normalized roleName
+  const isAdmin = useMemo(() => {
+    return roleName === "admin" || perms.includes("*");
+  }, [roleName, perms]);
 
   if (loading) {
     return (
@@ -101,11 +107,14 @@ export default function App() {
   const ProtectedRoute = ({ children, requiredPermission }) => {
     if (!user) return <Navigate to="/" />;
 
+    // Admins bypass all permission checks
     if (isAdmin) {
       return <MainLayout user={user} handleLogout={handleLogout}>{children}</MainLayout>;
     }
 
+    // Check permissions for Staff/Managers
     if (requiredPermission && !perms.includes(requiredPermission)) {
+      // If they don't have permission, redirect them to their dashboard instead of a loop
       return <Navigate to="/staff" />;
     }
 
@@ -113,51 +122,50 @@ export default function App() {
   };
 
   return (
-    <Router>
-      <Routes>
-        {/* PUBLIC ACCESS / LOGIN */}
-        <Route
-          path="/"
-          element={
-            !user ? (
-              <Login setUser={setUser} />
-            ) : (
-              <Navigate to={isAdmin ? "/admin" : "/staff"} />
-            )
-          }
-        />
+    <Routes>
+      {/* PUBLIC ACCESS / LOGIN */}
+      <Route
+        path="/"
+        element={
+          !user ? (
+            <Login setUser={setUser} />
+          ) : (
+            // ⭐ Redirect to appropriate dashboard based on role
+            <Navigate to={isAdmin ? "/admin" : "/staff"} />
+          )
+        }
+      />
 
-        {/* Dashboards */}
-        <Route path="/admin" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
-        <Route path="/staff" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
+      {/* Dashboards */}
+      <Route path="/admin" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
+      <Route path="/staff" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
 
-        {/* Task Management (Passed socket for real-time updates) */}
-        <Route path="/tasks" element={<ProtectedRoute requiredPermission="tasks_read"><TaskPage user={user} socket={socket} /></ProtectedRoute>} />
-        <Route path="/tasks/create" element={<ProtectedRoute requiredPermission="tasks_create"><TaskFormPage user={user} /></ProtectedRoute>} />
-        <Route path="/tasks/edit/:id" element={<ProtectedRoute requiredPermission="tasks_update"><TaskFormPage user={user} /></ProtectedRoute>} />
+      {/* Task Management */}
+      <Route path="/tasks" element={<ProtectedRoute requiredPermission="tasks_read"><TaskPage user={user} socket={socket} /></ProtectedRoute>} />
+      <Route path="/tasks/create" element={<ProtectedRoute requiredPermission="tasks_create"><TaskFormPage user={user} /></ProtectedRoute>} />
+      <Route path="/tasks/edit/:id" element={<ProtectedRoute requiredPermission="tasks_update"><TaskFormPage user={user} /></ProtectedRoute>} />
 
-        {/* Staff Management */}
-        <Route path="/admin/staff" element={<ProtectedRoute requiredPermission="staff_read"><AdminStaffCRUD user={user} /></ProtectedRoute>} />
-        <Route path="/admin/staff/create" element={<ProtectedRoute requiredPermission="staff_create"><StaffFormPage /></ProtectedRoute>} />
-        <Route path="/admin/staff/edit/:id" element={<ProtectedRoute requiredPermission="staff_update"><StaffFormPage /></ProtectedRoute>} />
+      {/* Staff Management */}
+      <Route path="/admin/staff" element={<ProtectedRoute requiredPermission="staff_read"><AdminStaffCRUD user={user} /></ProtectedRoute>} />
+      <Route path="/admin/staff/create" element={<ProtectedRoute requiredPermission="staff_create"><StaffFormPage /></ProtectedRoute>} />
+      <Route path="/admin/staff/edit/:id" element={<ProtectedRoute requiredPermission="staff_update"><StaffFormPage /></ProtectedRoute>} />
 
-        {/* Roles & Permissions */}
-        <Route path="/admin/roles" element={<ProtectedRoute requiredPermission="roles_read"><RolePage user={user} /></ProtectedRoute>} />
-        <Route path="/admin/roles/create" element={<ProtectedRoute requiredPermission="roles_create"><RolePermissionMatrix user={user} /></ProtectedRoute>} />
-        <Route path="/admin/roles/edit/:id" element={<ProtectedRoute requiredPermission="roles_update"><RolePermissionMatrix user={user} /></ProtectedRoute>} />
-        
-        {/* Permission Management Routes */}
-        <Route path="/admin/permissions" element={<ProtectedRoute requiredPermission="permissions_read"><PermissionPage user={user} /></ProtectedRoute>} />
-        <Route path="/admin/permissions/create" element={<ProtectedRoute requiredPermission="permissions_create"><PermissionFormPage user={user} /></ProtectedRoute>} />
-        <Route path="/admin/permissions/update/:id" element={<ProtectedRoute requiredPermission="permissions_update"><PermissionFormPage user={user} /></ProtectedRoute>} />
+      {/* Roles & Permissions */}
+      <Route path="/admin/roles" element={<ProtectedRoute requiredPermission="roles_read"><RolePage user={user} /></ProtectedRoute>} />
+      <Route path="/admin/roles/create" element={<ProtectedRoute requiredPermission="roles_create"><RolePermissionMatrix user={user} /></ProtectedRoute>} />
+      <Route path="/admin/roles/edit/:id" element={<ProtectedRoute requiredPermission="roles_update"><RolePermissionMatrix user={user} /></ProtectedRoute>} />
+      
+      {/* Permission Management Routes */}
+      <Route path="/admin/permissions" element={<ProtectedRoute requiredPermission="permissions_read"><PermissionPage user={user} /></ProtectedRoute>} />
+      <Route path="/admin/permissions/create" element={<ProtectedRoute requiredPermission="permissions_create"><PermissionFormPage user={user} /></ProtectedRoute>} />
+      <Route path="/admin/permissions/update/:id" element={<ProtectedRoute requiredPermission="permissions_update"><PermissionFormPage user={user} /></ProtectedRoute>} />
 
-        {/* Task Status Management */}
-        <Route path="/admin/task-status" element={<ProtectedRoute requiredPermission="roles_update"><TaskStatusPage user={user} /></ProtectedRoute>} />
-        <Route path="/admin/task-status/create" element={<ProtectedRoute requiredPermission="roles_update"><TaskStatusFormPage user={user} /></ProtectedRoute>} />
-        <Route path="/admin/task-status/edit/:id" element={<ProtectedRoute requiredPermission="roles_update"><TaskStatusFormPage user={user} /></ProtectedRoute>} />
+      {/* Task Status Management */}
+      <Route path="/admin/task-status" element={<ProtectedRoute requiredPermission="roles_update"><TaskStatusPage user={user} /></ProtectedRoute>} />
+      <Route path="/admin/task-status/create" element={<ProtectedRoute requiredPermission="roles_update"><TaskStatusFormPage user={user} /></ProtectedRoute>} />
+      <Route path="/admin/task-status/edit/:id" element={<ProtectedRoute requiredPermission="roles_update"><TaskStatusFormPage user={user} /></ProtectedRoute>} />
 
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </Router>
+      <Route path="*" element={<Navigate to="/" />} />
+    </Routes>
   );
 }

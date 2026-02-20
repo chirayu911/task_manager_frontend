@@ -2,26 +2,39 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ShieldCheck, Loader, CheckCircle2, XCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api';
-import { toast } from 'react-toastify';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
-import TableControls from '../components/TableControls'; // ⭐ Integrated TableControls
+import TableControls from '../components/TableControls';
+import ConfirmModal from '../components/ConfirmModal'; // ⭐ New Import
+import Declaration from '../components/Declaration';   // ⭐ New Import
 
 export default function RolePage({ user }) {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Logic: Search & Pagination States
+  // Modal & Feedback States
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [roleToDelete, setRoleToDelete] = useState(null);
+  const [feedback, setFeedback] = useState({ type: '', message: '' });
+
+  // Search & Pagination States
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5); // ⭐ Integrated dynamic limit
+  const [itemsPerPage, setItemsPerPage] = useState(8);
 
-  // Permission Logic
-  const roleName = typeof user?.role === 'object' ? user.role?.name : user?.role;
-  const perms = user?.permissions || [];
-  const isAdmin = roleName === 'admin' || perms.includes('*');
+  // ⭐ Logic: Memoized values to fix ESLint warnings and prevent unnecessary re-renders
+  const roleName = useMemo(() => 
+    typeof user?.role === 'object' ? user.role?.name : user?.role, 
+  [user]);
 
+  const perms = useMemo(() => user?.permissions || [], [user]);
+
+  const isAdmin = useMemo(() => 
+    roleName === 'admin' || perms.includes('*'), 
+  [roleName, perms]);
+
+  // Permission helper
   const can = useCallback((perm) => isAdmin || perms.includes(perm), [isAdmin, perms]);
 
   const fetchRoles = useCallback(async () => {
@@ -30,7 +43,7 @@ export default function RolePage({ user }) {
       const { data } = await API.get('/roles');
       setRoles(data);
     } catch (err) {
-      toast.error("Failed to load roles");
+      setFeedback({ type: 'error', message: "Failed to load roles" });
     } finally {
       setLoading(false);
     }
@@ -40,30 +53,36 @@ export default function RolePage({ user }) {
     if (user) fetchRoles();
   }, [user, fetchRoles]);
 
-  const deleteRole = async (id) => {
-    if (!window.confirm("Permanently delete this role? This will affect all assigned users.")) return;
+  // ⭐ Logic: Modal Handling for Deletion
+  const openDeleteModal = (id) => {
+    setRoleToDelete(id);
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async () => {
     try {
-      await API.delete(`/roles/${id}`);
-      setRoles(prev => prev.filter(r => r._id !== id));
-      toast.success("Role deleted successfully");
+      await API.delete(`/roles/${roleToDelete}`);
+      setRoles(prev => prev.filter(r => r._id !== roleToDelete));
+      setFeedback({ type: 'success', message: "Role deleted successfully" });
+      setTimeout(() => setFeedback({ type: '', message: '' }), 3000);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Error deleting role");
+      const errorMsg = err.response?.data?.message || "Error deleting role";
+      setFeedback({ type: 'error', message: errorMsg });
     }
   };
 
-  // Logic: Search Filter
+  // Logic: Search Filter optimized with useMemo
   const filteredRoles = useMemo(() => {
     return roles.filter(r => 
       r.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [roles, searchTerm]);
 
-  // Logic: Pagination Slicing
+  // Logic: Pagination Slicing optimized with useMemo
   const currentTableData = useMemo(() => {
-    return filteredRoles.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
-    );
+    const lastIndex = currentPage * itemsPerPage;
+    const firstIndex = lastIndex - itemsPerPage;
+    return filteredRoles.slice(firstIndex, lastIndex);
   }, [filteredRoles, currentPage, itemsPerPage]);
 
   if (!user) return null;
@@ -75,6 +94,13 @@ export default function RolePage({ user }) {
 
   return (
     <div className="p-8 max-w-6xl mx-auto min-h-screen">
+      {/* Feedback Section */}
+      <Declaration 
+        type={feedback.type} 
+        message={feedback.message} 
+        onClose={() => setFeedback({ type: '', message: '' })} 
+      />
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
@@ -87,14 +113,15 @@ export default function RolePage({ user }) {
             value={searchTerm} 
             onChange={(val) => { 
               setSearchTerm(val); 
-              setCurrentPage(1); // ⭐ Reset to page 1 on search
+              setCurrentPage(1); 
             }} 
             placeholder="Search roles..." 
           />
           {can('roles_create') && (
             <CreateButton 
               onClick={() => navigate("/admin/roles/create")} 
-              label="New Role"
+              label="New Role" 
+              color="indigo"
             />
           )}
         </div>
@@ -121,7 +148,7 @@ export default function RolePage({ user }) {
                       : 'bg-red-50 text-red-700 border-red-100'
                   }`}>
                     {role.status === 1 || role.status === 'Active' ? <CheckCircle2 size={12}/> : <XCircle size={12}/>}
-                    {role.status === 1 ? 'Active' : 'Inactive'}
+                    {role.status === 1 || role.status === 'Active' ? 'Active' : 'Inactive'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
@@ -135,7 +162,7 @@ export default function RolePage({ user }) {
                       <EditButton onClick={() => navigate(`/admin/roles/edit/${role._id}`)} />
                     )}
                     {can('roles_delete') && (
-                      <DeleteButton onClick={() => deleteRole(role._id)} />
+                      <DeleteButton onClick={() => openDeleteModal(role._id)} />
                     )}
                   </div>
                 </td>
@@ -150,7 +177,7 @@ export default function RolePage({ user }) {
           </tbody>
         </table>
 
-        {/* ⭐ Integrated Table Controls */}
+        {/* Integrated Table Controls */}
         <TableControls 
           currentPage={currentPage} 
           totalItems={filteredRoles.length} 
@@ -158,10 +185,19 @@ export default function RolePage({ user }) {
           onPageChange={setCurrentPage} 
           onLimitChange={(newLimit) => {
             setItemsPerPage(newLimit);
-            setCurrentPage(1); // ⭐ Reset to page 1 when entry limit changes
+            setCurrentPage(1);
           }}
         />
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onConfirm={handleDelete}
+        title="Delete Role"
+        message="Permanently delete this role? This will affect all assigned users."
+      />
     </div>
   );
 }

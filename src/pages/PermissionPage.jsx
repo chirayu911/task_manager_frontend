@@ -2,54 +2,78 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ShieldPlus, Loader } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api';
-import { toast } from 'react-toastify';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
-import TableControls from '../components/TableControls'; // ⭐ Updated import
+import TableControls from '../components/TableControls';
+import ConfirmModal from '../components/ConfirmModal';
+import Declaration from '../components/Declaration';
 
 export default function PermissionPage({ user }) {
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5); // ⭐ Added dynamic limit state
   const navigate = useNavigate();
 
-  const roleName = typeof user?.role === 'object' ? user.role?.name : user?.role;
-  const perms = user?.permissions || [];
-  const isAdmin = roleName === 'admin' || perms.includes('*');
+  // Modal & Feedback States
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [permToDelete, setPermToDelete] = useState(null);
+  const [feedback, setFeedback] = useState({ type: '', message: '' });
 
-  // ⭐ Permission helper wrapped in useCallback for performance
-  const can = useCallback((perm) => isAdmin || perms.includes(perm), [isAdmin, perms]);
+  // Search & Pagination States
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  useEffect(() => { 
-    if (user) fetchPermissions(); 
-  }, [user]);
-    
-  const fetchPermissions = async () => {
+  // ⭐ Logic: Memoized values to fix ESLint warnings and prevent unnecessary re-renders
+  const roleName = useMemo(() => 
+    typeof user?.role === 'object' ? user.role?.name : user?.role, 
+  [user]);
+
+  const perms = useMemo(() => user?.permissions || [], [user]);
+
+  const isAdmin = useMemo(() => 
+    roleName === 'admin' || perms.includes('*'), 
+  [roleName, perms]);
+
+  const can = useCallback((perm) => 
+    isAdmin || perms.includes(perm), 
+  [isAdmin, perms]);
+
+  const fetchPermissions = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await API.get('/permissions');
       setPermissions(data);
     } catch (err) { 
-      toast.error("Failed to load permissions"); 
+      setFeedback({ type: 'error', message: 'Failed to load permissions.' });
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const deletePermission = async (id) => {
-    if (!window.confirm("Permanently delete this permission? This may break existing roles.")) return;
+  useEffect(() => { 
+    if (user) fetchPermissions(); 
+  }, [user, fetchPermissions]);
+
+  // ⭐ Logic: Custom Confirmation Modal Logic
+  const openDeleteModal = (id) => {
+    setPermToDelete(id);
+    setIsModalOpen(true);
+  };
+    
+  const handleDelete = async () => {
     try {
-      await API.delete(`/permissions/${id}`);
-      setPermissions(prev => prev.filter(p => p._id !== id));
-      toast.success("Permission deleted");
+      await API.delete(`/permissions/${permToDelete}`);
+      setPermissions(prev => prev.filter(p => p._id !== permToDelete));
+      setFeedback({ type: 'success', message: 'Permission deleted successfully.' });
+      
+      // Auto-clear feedback after 3 seconds
+      setTimeout(() => setFeedback({ type: '', message: '' }), 3000);
     } catch (err) { 
-      toast.error("Error deleting permission"); 
+      setFeedback({ type: 'error', message: 'Error deleting permission. It may be in use by a role.' });
     }
   };
 
-  // ⭐ Filter Logic optimized with useMemo
+  // Logic: Search Filter optimized with useMemo
   const filteredPermissions = useMemo(() => {
     return permissions.filter(p => 
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -57,12 +81,11 @@ export default function PermissionPage({ user }) {
     );
   }, [permissions, searchTerm]);
 
-  // ⭐ Pagination Logic optimized with useMemo
+  // Logic: Pagination Slicing optimized with useMemo
   const currentTableData = useMemo(() => {
-    return filteredPermissions.slice(
-      (currentPage - 1) * itemsPerPage,
-      currentPage * itemsPerPage
-    );
+    const lastIndex = currentPage * itemsPerPage;
+    const firstIndex = lastIndex - itemsPerPage;
+    return filteredPermissions.slice(firstIndex, lastIndex);
   }, [filteredPermissions, currentPage, itemsPerPage]);
 
   if (!user) return null;
@@ -74,6 +97,13 @@ export default function PermissionPage({ user }) {
 
   return (
     <div className="p-8 max-w-6xl mx-auto min-h-screen">
+      {/* Feedback Section */}
+      <Declaration 
+        type={feedback.type} 
+        message={feedback.message} 
+        onClose={() => setFeedback({ type: '', message: '' })} 
+      />
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
@@ -86,7 +116,7 @@ export default function PermissionPage({ user }) {
             value={searchTerm} 
             onChange={(val) => { 
               setSearchTerm(val); 
-              setCurrentPage(1); // ⭐ Reset to page 1 on search
+              setCurrentPage(1); 
             }} 
             placeholder="Search name or slug..." 
           />
@@ -124,7 +154,7 @@ export default function PermissionPage({ user }) {
                       <EditButton onClick={() => navigate(`/admin/permissions/update/${perm._id}`)} />
                     )}
                     {can('permissions_delete') && (
-                      <DeleteButton onClick={() => deletePermission(perm._id)} />
+                      <DeleteButton onClick={() => openDeleteModal(perm._id)} />
                     )}
                   </div>
                 </td>
@@ -133,7 +163,6 @@ export default function PermissionPage({ user }) {
           </tbody>
         </table>
 
-        {/* ⭐ Integrated Table Controls */}
         <TableControls 
           currentPage={currentPage} 
           totalItems={filteredPermissions.length} 
@@ -141,10 +170,19 @@ export default function PermissionPage({ user }) {
           onPageChange={setCurrentPage} 
           onLimitChange={(newLimit) => {
             setItemsPerPage(newLimit);
-            setCurrentPage(1); // ⭐ Reset to page 1 when entries per page change
+            setCurrentPage(1);
           }}
         />
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onConfirm={handleDelete}
+        title="Delete Permission"
+        message="Permanently delete this permission? This may break existing roles."
+      />
     </div>
   );
 }
