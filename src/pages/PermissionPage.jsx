@@ -8,22 +8,19 @@ import TableControls from '../components/TableControls';
 import ConfirmModal from '../components/ConfirmModal';
 import Declaration from '../components/Declaration';
 
-export default function PermissionPage({ user }) {
+export default function PermissionPage({ user, socket }) {
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Modal & Feedback States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [permToDelete, setPermToDelete] = useState(null);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
 
-  // Search & Pagination States
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // ⭐ Logic: Memoized values to fix ESLint warnings and prevent unnecessary re-renders
   const roleName = useMemo(() => 
     typeof user?.role === 'object' ? user.role?.name : user?.role, 
   [user]);
@@ -54,7 +51,13 @@ export default function PermissionPage({ user }) {
     if (user) fetchPermissions(); 
   }, [user, fetchPermissions]);
 
-  // ⭐ Logic: Custom Confirmation Modal Logic
+  useEffect(() => {
+    if (socket) {
+      socket.on("permissionsUpdated", fetchPermissions);
+      return () => socket.off("permissionsUpdated", fetchPermissions);
+    }
+  }, [socket, fetchPermissions]);
+
   const openDeleteModal = (id) => {
     setPermToDelete(id);
     setIsModalOpen(true);
@@ -65,15 +68,12 @@ export default function PermissionPage({ user }) {
       await API.delete(`/permissions/${permToDelete}`);
       setPermissions(prev => prev.filter(p => p._id !== permToDelete));
       setFeedback({ type: 'success', message: 'Permission deleted successfully.' });
-      
-      // Auto-clear feedback after 3 seconds
       setTimeout(() => setFeedback({ type: '', message: '' }), 3000);
     } catch (err) { 
       setFeedback({ type: 'error', message: 'Error deleting permission. It may be in use by a role.' });
     }
   };
 
-  // Logic: Search Filter optimized with useMemo
   const filteredPermissions = useMemo(() => {
     return permissions.filter(p => 
       p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -81,7 +81,6 @@ export default function PermissionPage({ user }) {
     );
   }, [permissions, searchTerm]);
 
-  // Logic: Pagination Slicing optimized with useMemo
   const currentTableData = useMemo(() => {
     const lastIndex = currentPage * itemsPerPage;
     const firstIndex = lastIndex - itemsPerPage;
@@ -97,37 +96,36 @@ export default function PermissionPage({ user }) {
 
   return (
     <div className="p-8 max-w-6xl mx-auto min-h-screen">
-      {/* Feedback Section */}
       <Declaration 
         type={feedback.type} 
         message={feedback.message} 
         onClose={() => setFeedback({ type: '', message: '' })} 
       />
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      {/* Header Row: Title & Create Button */}
+      <div className="flex justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
             <ShieldPlus className="text-purple-600" /> Permission Management
           </h2>
           <p className="text-gray-500 text-sm mt-1">Configure individual system access slugs.</p>
         </div>
-        <div className="flex w-full md:w-auto gap-3">
-          <SearchBar 
-            value={searchTerm} 
-            onChange={(val) => { 
-              setSearchTerm(val); 
-              setCurrentPage(1); 
-            }} 
-            placeholder="Search name or slug..." 
+        {can('permissions_create') && (
+          <CreateButton 
+            onClick={() => navigate("/admin/permissions/create")} 
+            label="New Permission" 
+            color="purple"
           />
-          {can('permissions_create') && (
-            <CreateButton 
-              onClick={() => navigate("/admin/permissions/create")} 
-              label="New Permission" 
-              color="purple"
-            />
-          )}
-        </div>
+        )}
+      </div>
+
+      {/* Filter Row: Search Bar Underneath */}
+      <div className="mb-8 w-full md:max-w-md">
+        <SearchBar 
+          value={searchTerm} 
+          onChange={(val) => { setSearchTerm(val); setCurrentPage(1); }} 
+          placeholder="Search name or slug..." 
+        />
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -175,7 +173,6 @@ export default function PermissionPage({ user }) {
         />
       </div>
 
-      {/* Confirmation Modal */}
       <ConfirmModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 

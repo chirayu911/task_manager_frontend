@@ -5,25 +5,22 @@ import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
 import TableControls from '../components/TableControls';
-import ConfirmModal from '../components/ConfirmModal'; // ⭐ New Import
-import Declaration from '../components/Declaration';   // ⭐ New Import
+import ConfirmModal from '../components/ConfirmModal';
+import Declaration from '../components/Declaration'; 
 
-export default function RolePage({ user }) {
+export default function RolePage({ user, socket }) {
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Modal & Feedback States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState(null);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
 
-  // Search & Pagination States
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(8);
 
-  // ⭐ Logic: Memoized values to fix ESLint warnings and prevent unnecessary re-renders
   const roleName = useMemo(() => 
     typeof user?.role === 'object' ? user.role?.name : user?.role, 
   [user]);
@@ -34,7 +31,6 @@ export default function RolePage({ user }) {
     roleName === 'admin' || perms.includes('*'), 
   [roleName, perms]);
 
-  // Permission helper
   const can = useCallback((perm) => isAdmin || perms.includes(perm), [isAdmin, perms]);
 
   const fetchRoles = useCallback(async () => {
@@ -53,7 +49,13 @@ export default function RolePage({ user }) {
     if (user) fetchRoles();
   }, [user, fetchRoles]);
 
-  // ⭐ Logic: Modal Handling for Deletion
+  useEffect(() => {
+    if (socket) {
+      socket.on("permissionsUpdated", fetchRoles);
+      return () => socket.off("permissionsUpdated", fetchRoles);
+    }
+  }, [socket, fetchRoles]);
+
   const openDeleteModal = (id) => {
     setRoleToDelete(id);
     setIsModalOpen(true);
@@ -71,14 +73,12 @@ export default function RolePage({ user }) {
     }
   };
 
-  // Logic: Search Filter optimized with useMemo
   const filteredRoles = useMemo(() => {
     return roles.filter(r => 
       r.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [roles, searchTerm]);
 
-  // Logic: Pagination Slicing optimized with useMemo
   const currentTableData = useMemo(() => {
     const lastIndex = currentPage * itemsPerPage;
     const firstIndex = lastIndex - itemsPerPage;
@@ -94,37 +94,36 @@ export default function RolePage({ user }) {
 
   return (
     <div className="p-8 max-w-6xl mx-auto min-h-screen">
-      {/* Feedback Section */}
       <Declaration 
         type={feedback.type} 
         message={feedback.message} 
         onClose={() => setFeedback({ type: '', message: '' })} 
       />
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      {/* Header Row: Title & Create Button */}
+      <div className="flex justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
             <ShieldCheck className="text-indigo-600" /> Role Management
           </h2>
           <p className="text-gray-500 text-sm mt-1">Define system roles and map permissions to them.</p>
         </div>
-        <div className="flex w-full md:w-auto gap-3">
-          <SearchBar 
-            value={searchTerm} 
-            onChange={(val) => { 
-              setSearchTerm(val); 
-              setCurrentPage(1); 
-            }} 
-            placeholder="Search roles..." 
+        {can('roles_create') && (
+          <CreateButton 
+            onClick={() => navigate("/admin/roles/create")} 
+            label="New Role" 
+            color="indigo"
           />
-          {can('roles_create') && (
-            <CreateButton 
-              onClick={() => navigate("/admin/roles/create")} 
-              label="New Role" 
-              color="indigo"
-            />
-          )}
-        </div>
+        )}
+      </div>
+
+      {/* Filter Row: Search Bar Underneath */}
+      <div className="mb-8 w-full md:max-w-md">
+        <SearchBar 
+          value={searchTerm} 
+          onChange={(val) => { setSearchTerm(val); setCurrentPage(1); }} 
+          placeholder="Search roles..." 
+        />
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -153,7 +152,7 @@ export default function RolePage({ user }) {
                 </td>
                 <td className="px-6 py-4">
                   <span className="text-sm text-gray-500 font-medium">
-                    {role.permissions?.length || 0} Slugs Assigned
+                    {role.permissions?.length || 0} permissios Assigned
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">
@@ -177,7 +176,6 @@ export default function RolePage({ user }) {
           </tbody>
         </table>
 
-        {/* Integrated Table Controls */}
         <TableControls 
           currentPage={currentPage} 
           totalItems={filteredRoles.length} 
@@ -190,7 +188,6 @@ export default function RolePage({ user }) {
         />
       </div>
 
-      {/* Confirmation Modal */}
       <ConfirmModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 

@@ -8,7 +8,7 @@ import TableControls from '../components/TableControls';
 import ConfirmModal from '../components/ConfirmModal';
 import Declaration from '../components/Declaration';
 
-export default function AdminStaffCRUD({ user }) {
+export default function AdminStaffCRUD({ user, socket }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -23,7 +23,6 @@ export default function AdminStaffCRUD({ user }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
-  // ⭐ Logic: Memoized values to fix ESLint "exhaustive-deps" warnings
   const roleName = useMemo(() =>
     typeof user?.role === 'object' ? user.role?.name : user?.role,
     [user]);
@@ -52,7 +51,13 @@ export default function AdminStaffCRUD({ user }) {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  // ⭐ Logic: Modal Handling
+  useEffect(() => {
+    if (socket) {
+      socket.on("staffChanged", fetchUsers);
+      return () => socket.off("staffChanged", fetchUsers);
+    }
+  }, [socket, fetchUsers]);
+
   const openDeleteModal = (id) => {
     setUserToDelete(id);
     setIsModalOpen(true);
@@ -63,15 +68,12 @@ export default function AdminStaffCRUD({ user }) {
       await API.delete(`/users/${userToDelete}`);
       setUsers(prev => prev.filter(u => u._id !== userToDelete));
       setFeedback({ type: 'success', message: 'Staff member removed successfully.' });
-
-      // Auto-clear success message
       setTimeout(() => setFeedback({ type: '', message: '' }), 3000);
     } catch (err) {
       setFeedback({ type: 'error', message: 'Failed to delete user. Please try again.' });
     }
   };
 
-  // ⭐ Logic: Memoized Filter & Slice for Instant Updates
   const filteredUsers = useMemo(() => {
     return users.filter(u =>
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -94,35 +96,32 @@ export default function AdminStaffCRUD({ user }) {
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      {/* Feedback Section */}
       <Declaration
         type={feedback.type}
         message={feedback.message}
         onClose={() => setFeedback({ type: '', message: '' })}
       />
 
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      {/* Header Row: Title & Create Button */}
+      <div className="flex justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
             <Users className="text-blue-600" /> Staff Management
           </h2>
           <p className="text-gray-500 text-sm">Manage user accounts, roles, and system access.</p>
         </div>
+        {can('staff_create') && (
+          <CreateButton onClick={() => navigate('/admin/staff/create')} label="New Staff" />
+        )}
+      </div>
 
-        <div className="flex w-full md:w-auto gap-3">
-          <SearchBar
-            value={searchTerm}
-            onChange={(val) => { setSearchTerm(val); setCurrentPage(1); }}
-            placeholder="Search by name or email..."
-          />
-          {can('staff_create') && (
-            <CreateButton
-              onClick={() => navigate('/admin/staff/create')}
-              label="New Staff"
-            />
-          )}
-        </div>
+      {/* Filter Row: Search Bar Underneath */}
+      <div className="mb-8 w-full md:max-w-md">
+        <SearchBar
+          value={searchTerm}
+          onChange={(val) => { setSearchTerm(val); setCurrentPage(1); }}
+          placeholder="Search by name or email..."
+        />
       </div>
 
       {/* Data Table */}
@@ -157,8 +156,6 @@ export default function AdminStaffCRUD({ user }) {
                     {can('staff_update') && (
                       <EditButton onClick={() => navigate(`/admin/staff/edit/${staffMember._id}`)} />
                     )}
-                    
-                      {/* ⭐ Updated Delete Logic: Authorized AND not an admin */ }
                     {can('staff_delete') && (staffMember.role?.name || staffMember.role) !== 'admin' && (
                       <DeleteButton onClick={() => openDeleteModal(staffMember._id)} />
                     )}
@@ -175,7 +172,6 @@ export default function AdminStaffCRUD({ user }) {
           </tbody>
         </table>
 
-        {/* Dynamic Pagination & Entries Limit */}
         <TableControls
           currentPage={currentPage}
           totalItems={filteredUsers.length}
@@ -188,7 +184,6 @@ export default function AdminStaffCRUD({ user }) {
         />
       </div>
 
-      {/* Confirmation Modal */}
       <ConfirmModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

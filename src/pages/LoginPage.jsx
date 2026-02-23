@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { Lock, Mail, Loader } from 'lucide-react';
+import { useNavigate } from 'react-router-dom'; // ⭐ 1. Import useNavigate
 import API from '../api';
 
-export default function LoginPage() {
-  const [username, setUsername] = useState(''); // ⭐ Use email instead of username
+// ⭐ 2. Accept setUser as a prop
+export default function LoginPage({ setUser }) { 
+  const [username, setUsername] = useState(''); 
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate(); // ⭐ 3. Initialize navigate
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -14,11 +17,17 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // ⭐ Send 'email' to match backend controller
-      await API.post('/auth/login', { username, password });
-      window.location.href = "/";
+      // ⭐ 4. Capture the response data
+      const response = await API.post('/auth/login', { username, password });
+      
+      // ⭐ 5. Instantly update the React state with the new user's data
+      // This immediately changes 'user' in App.js from null to the Staff member
+      setUser(response.data);
+      
+      // ⭐ 6. Smoothly navigate to the home route without reloading the browser
+      navigate('/'); 
+      
     } catch (err) {
-      // Display specific error message from backend
       setError(err.response?.data?.message || "Invalid username or password");
       setLoading(false);
     }

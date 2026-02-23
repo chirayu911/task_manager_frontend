@@ -5,25 +5,22 @@ import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
 import TableControls from '../components/TableControls';
-import ConfirmModal from '../components/ConfirmModal'; // ⭐ New Import
-import Declaration from '../components/Declaration';   // ⭐ New Import
+import ConfirmModal from '../components/ConfirmModal'; 
+import Declaration from '../components/Declaration';  
 
-export default function TaskStatusPage({ user }) {
+export default function TaskStatusPage({ user, socket }) {
   const [statuses, setStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Modal & Feedback States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusToDelete, setStatusToDelete] = useState(null);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
 
-  // Search and Pagination States
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(8);
 
-  // ⭐ Logic: Memoized values to fix ESLint warnings and prevent unnecessary re-renders
   const roleName = useMemo(() => 
     typeof user?.role === 'object' ? user.role?.name : user?.role, 
   [user]);
@@ -34,7 +31,6 @@ export default function TaskStatusPage({ user }) {
     roleName === 'admin' || perms.includes('*'), 
   [roleName, perms]);
 
-  // Permission helper optimized with useCallback
   const can = useCallback((perm) => isAdmin || perms.includes(perm), [isAdmin, perms]);
 
   const fetchStatuses = useCallback(async () => {
@@ -55,7 +51,13 @@ export default function TaskStatusPage({ user }) {
     }
   }, [user, fetchStatuses]);
 
-  // ⭐ Logic: Modal Handling
+  useEffect(() => {
+    if (socket) {
+      socket.on("taskStatusChanged", fetchStatuses);
+      return () => socket.off("taskStatusChanged", fetchStatuses);
+    }
+  }, [socket, fetchStatuses]);
+
   const openDeleteModal = (id) => {
     setStatusToDelete(id);
     setIsModalOpen(true);
@@ -73,14 +75,12 @@ export default function TaskStatusPage({ user }) {
     }
   };
 
-  // Logic: Search Filter optimized with useMemo
   const filteredStatuses = useMemo(() => {
     return statuses.filter(s => 
       s.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [statuses, searchTerm]);
 
-  // Logic: Pagination Slicing optimized with useMemo
   const currentTableData = useMemo(() => {
     const lastIndex = currentPage * itemsPerPage;
     const firstIndex = lastIndex - itemsPerPage;
@@ -97,37 +97,35 @@ export default function TaskStatusPage({ user }) {
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
-      {/* Feedback Section */}
       <Declaration 
         type={feedback.type} 
         message={feedback.message} 
         onClose={() => setFeedback({ type: '', message: '' })} 
       />
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      {/* Header Row: Title & Create Button */}
+      <div className="flex justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
             <Settings className="text-blue-600" /> Task Statuses
           </h2>
           <p className="text-sm text-gray-500 mt-1">Manage the available stages for your team's workflow.</p>
         </div>
-        
-        <div className="flex w-full md:w-auto gap-3">
-          <SearchBar 
-            value={searchTerm} 
-            onChange={(val) => { 
-              setSearchTerm(val); 
-              setCurrentPage(1); 
-            }} 
-            placeholder="Search statuses..." 
+        {can('roles_update') && (
+          <CreateButton 
+            onClick={() => navigate("/admin/task-status/create")} 
+            label="Add Status" 
           />
-          {can('roles_update') && (
-            <CreateButton 
-              onClick={() => navigate("/admin/task-status/create")} 
-              label="Add Status" 
-            />
-          )}
-        </div>
+        )}
+      </div>
+
+      {/* Filter Row: Search Bar Underneath */}
+      <div className="mb-8 w-full md:max-w-md">
+        <SearchBar 
+          value={searchTerm} 
+          onChange={(val) => { setSearchTerm(val); setCurrentPage(1); }} 
+          placeholder="Search statuses..." 
+        />
       </div>
 
       <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
@@ -176,7 +174,6 @@ export default function TaskStatusPage({ user }) {
           </tbody>
         </table>
 
-        {/* Integrated Table Controls */}
         <TableControls 
           currentPage={currentPage} 
           totalItems={filteredStatuses.length} 
@@ -189,7 +186,6 @@ export default function TaskStatusPage({ user }) {
         />
       </div>
 
-      {/* Confirmation Modal */}
       <ConfirmModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
