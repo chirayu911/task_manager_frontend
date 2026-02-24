@@ -1,35 +1,52 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import Sidebar from './Sidebar';
+import Navbar from './Navbar';
 
-export default function MainLayout({ children, user, handleLogout }) {
+// ⭐ 1. Add activeProjectId and setActiveProjectId to the props
+export default function MainLayout({ 
+  children, 
+  user, 
+  handleLogout, 
+  activeProjectId, 
+  setActiveProjectId 
+}) {
 
-  // 🔥 Centralized permission checker
-  const can = (permission) => {
+  // Centralized permission checker
+  const can = useCallback((permission) => {
     if (!user) return false;
 
-    // Admin & Superadmin bypass
-    if (user.role === "admin" || user.role === "superadmin") {
+    const roleName = typeof user.role === 'object' ? user.role?.name : user.role;
+
+    if (roleName === "admin" || roleName === "superadmin" || user.permissions?.includes('*')) {
       return true;
     }
 
     return user.permissions?.includes(permission);
-  };
+  }, [user]);
 
   return (
-    <div className="flex">
-
-      {/* Sidebar now gets can() */}
-      <Sidebar 
+    <div className="min-h-screen bg-gray-50">
+      {/* ⭐ 2. Pass the props down to the Navbar */}
+      <Navbar 
         user={user} 
-        handleLogout={handleLogout}
-        can={can} 
+        handleLogout={handleLogout} 
+        activeProjectId={activeProjectId} 
+        setActiveProjectId={setActiveProjectId} 
       />
 
-      {/* Main Content */}
-      <main className="flex-1 ml-64 bg-gray-50 min-h-screen">
-        {children}
-      </main>
+      <div className="flex">
+        <Sidebar 
+          user={user} 
+          handleLogout={handleLogout}
+          can={can} 
+        />
 
+        <main className="flex-1 ml-64 pt-16 p-8 min-h-screen">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

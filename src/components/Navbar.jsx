@@ -1,76 +1,110 @@
-import React from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { ChevronDown, FolderKanban } from 'lucide-react';
+import API from '../api';
 
-const Navbar = () => {
+export default function Navbar({ user, activeProjectId, setActiveProjectId }) {
+  const [isProjectsOpen, setIsProjectsOpen] = useState(false);
+  const [projectList, setProjectList] = useState([]);
+  const projectsRef = useRef(null);
   const navigate = useNavigate();
-  
-  // Get user info to show name/role
-  const user = JSON.parse(localStorage.getItem('user'));
 
-  // --- LOGOUT FUNCTION (Fixed: No Axios Call) ---
-  const onLogout = () => {
-    // 1. Clear Local Storage
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
+  const fetchProjects = useCallback(async () => {
+    try {
+      const { data } = await API.get('/projects');
+      setProjectList(data || []);
+      
+      // Auto-select first project if none is active
+      if (!activeProjectId && data && data.length > 0) {
+        setActiveProjectId(data[0]._id);
+      }
+    } catch (err) {
+      console.error("Navbar: Failed to load projects", err);
+    }
+  }, [activeProjectId, setActiveProjectId]);
 
-    // 2. Show success message
-    toast.success('Logged out successfully');
+  useEffect(() => {
+    if (user) fetchProjects();
+  }, [user, fetchProjects]);
 
-    // 3. Redirect to Login Page
-    navigate('/login');
-  };
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (projectsRef.current && !projectsRef.current.contains(event.target)) {
+        setIsProjectsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const activeProject = projectList.find(p => p._id === activeProjectId);
 
   return (
-    <nav className="bg-white shadow-md mb-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          
-          {/* Logo */}
-          <div className="flex items-center">
-            <Link to={user?.role === 'admin' ? '/admin' : '/tasks'} className="text-xl font-bold text-blue-600">
-              Task Manager
-            </Link>
-          </div>
+    <nav className="bg-white border-b border-gray-200 fixed top-0 left-64 w-[calc(100%-16rem)] z-[100] h-16 shadow-sm">
+      <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-end">
+        
+        <div className="relative" ref={projectsRef}>
+          <button 
+            onClick={() => setIsProjectsOpen(!isProjectsOpen)}
+            className={`flex items-center gap-3 p-2 rounded-xl transition-all border border-transparent hover:bg-gray-50 ${
+              isProjectsOpen ? 'text-blue-600 bg-gray-50' : 'text-gray-600'
+            }`}
+          >
+            <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+              <FolderKanban size={18} />
+            </div>
+            <div className="hidden sm:block text-left">
+              <span className="text-sm font-bold block leading-none">{activeProject ? activeProject.title : 'Select Project'}</span>
+              {activeProject && <span className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Active Project</span>}
+            </div>
+            <ChevronDown size={16} className={`transition-transform duration-200 ${isProjectsOpen ? 'rotate-180' : ''}`} />
+          </button>
 
-          {/* Menu Links */}
-          <div className="flex items-center space-x-4">
-            {user ? (
-              <>
-                <span className="text-gray-600 hidden md:block">
-                  Hello, <strong>{user.name}</strong> ({user.role})
-                </span>
-                
-                {/* Admin Links */}
-                {(user.role === 'admin' || user.role === 'superadmin') && (
-                  <>
-                    <Link to="/admin" className="text-gray-600 hover:text-blue-600">Dashboard</Link>
-                    <Link to="/admin/staff" className="text-gray-600 hover:text-blue-600">Staff</Link>
-                  </>
-                )}
-                
-                {/* User Links */}
-                <Link to="/tasks" className="text-gray-600 hover:text-blue-600">Tasks</Link>
-
-                {/* Logout Button */}
-                <button
-                  onClick={onLogout}
-                  className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+          {isProjectsOpen && (
+            <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-100 rounded-2xl shadow-2xl py-2 animate-in fade-in zoom-in duration-150 z-[110]">
+              <div className="px-4 py-3 border-b border-gray-50 mb-1 flex justify-between items-center">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Available Projects</span>
+                <Link 
+                  to="/projects" 
+                  onClick={() => setIsProjectsOpen(false)} 
+                  className="text-[10px] text-blue-600 font-bold hover:underline"
                 >
-                  Logout
-                </button>
-              </>
-            ) : (
-              <>
-                <Link to="/login" className="text-gray-600 hover:text-blue-600 mr-4">Login</Link>
-                <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Register</Link>
-              </>
-            )}
-          </div>
+                  Manage All
+                </Link>
+              </div>
+              
+              <div className="max-h-80 overflow-y-auto custom-scrollbar">
+                {projectList.length > 0 ? (
+                  projectList.map((project) => (
+                    <button
+                      key={project._id}
+                      className={`w-full text-left block px-4 py-3 hover:bg-blue-50 transition-colors group border-l-4 ${
+                        activeProjectId === project._id ? 'border-blue-600 bg-blue-50' : 'border-transparent hover:border-blue-600'
+                      }`}
+                      onClick={() => {
+                        setActiveProjectId(project._id);
+                        setIsProjectsOpen(false);
+                        navigate('/tasks'); // ⭐ Redirects to tasks when project changes
+                      }}
+                    >
+                      <p className={`text-sm font-bold truncate ${activeProjectId === project._id ? 'text-blue-700' : 'text-gray-800 group-hover:text-blue-700'}`}>
+                        {project.title}
+                      </p>
+                      <p className="text-[10px] text-gray-400 truncate mt-0.5">
+                        {project.description || 'No description available'}
+                      </p>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-4 py-8 text-center">
+                    <p className="text-xs text-gray-400 italic">No active projects</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </nav>
   );
-};
-
-export default Navbar;
+}

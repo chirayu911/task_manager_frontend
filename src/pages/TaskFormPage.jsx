@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom'; // ⭐ Added useLocation
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Image as ImageIcon, Video, Maximize2, X, Trash2, AtSign, Loader } from 'lucide-react';
 import API from '../api';
 import { toast } from 'react-toastify';
 import FormActionButtons from '../components/FormActionButtons';
 
-export default function TaskFormPage({ user }) {
+export default function TaskFormPage({ user, activeProjectId }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation(); // ⭐ Added to check current URL
+  const location = useLocation();
   
-  // ⭐ Mode detection logic
   const isViewMode = location.pathname.includes('/view/');
   const isEditMode = Boolean(id) && !isViewMode;
 
@@ -18,8 +17,7 @@ export default function TaskFormPage({ user }) {
     title: '', 
     status: '', 
     assignedTo: '', 
-    description: '', 
-    project: '' 
+    description: ''
   });
   
   const [images, setImages] = useState([]);
@@ -40,7 +38,6 @@ export default function TaskFormPage({ user }) {
   
   const [staffList, setStaffList] = useState([]);
   const [statusList, setStatusList] = useState([]);
-  const [projectList, setProjectList] = useState([]);
   
   const [selectedMedia, setSelectedMedia] = useState(null);
 
@@ -51,16 +48,18 @@ export default function TaskFormPage({ user }) {
 
   useEffect(() => {
     const initData = async () => {
+      // Guard clause: Require active project
+      if (!activeProjectId) return;
+
       try {
-        const [statusRes, userRes, projectRes] = await Promise.all([
-          API.get('/task-statuses'),
-          API.get('/users'),
-          API.get('/projects')
+        const [statusRes, teamRes] = await Promise.all([
+          API.get(`/task-statuses?project=${activeProjectId}`),
+          API.get(`/projects/${activeProjectId}/team`)
         ]);
 
-        setStatusList(statusRes.data.filter(s => s.status === 'active'));
-        setStaffList(userRes.data.filter(u => (u.role?.name || u.role) !== 'customer'));
-        setProjectList(projectRes.data); 
+        const activeStatuses = statusRes.data.filter(s => s.status === 'active');
+        setStatusList(activeStatuses);
+        setStaffList(teamRes.data || []);
 
         if (isEditMode || isViewMode) {
           const { data: task } = await API.get(`/tasks/${id}`);
@@ -68,11 +67,15 @@ export default function TaskFormPage({ user }) {
             title: task.title || '',
             status: task.status?._id || task.status || '',
             assignedTo: task.assignedTo?._id || task.assignedTo || '',
-            description: task.description || '',
-            project: task.project?._id || task.project || '' 
+            description: task.description || ''
           });
           setExistingImages(task.images || []);
           setExistingVideos(task.videos || []);
+        } else {
+          // ⭐ CRITICAL FIX: Automatically select the first status so it doesn't send an empty string
+          if (activeStatuses.length > 0) {
+            setFormData(prev => ({ ...prev, status: activeStatuses[0]._id }));
+          }
         }
       } catch (err) {
         toast.error("Failed to load form data.");
@@ -81,7 +84,7 @@ export default function TaskFormPage({ user }) {
       }
     };
     initData();
-  }, [id, isEditMode, isViewMode]);
+  }, [id, isEditMode, isViewMode, activeProjectId]);
 
   const handleVideoChange = (e) => {
     const files = Array.from(e.target.files);
@@ -91,7 +94,7 @@ export default function TaskFormPage({ user }) {
   };
 
   const handleDescriptionChange = (e) => {
-    if (isViewMode) return; // Prevent changes in view mode
+    if (isViewMode) return; 
     const value = e.target.value;
     const selectionStart = e.target.selectionStart;
     const textBeforeCursor = value.substring(0, selectionStart);
@@ -121,7 +124,7 @@ export default function TaskFormPage({ user }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isViewMode) return; // Block submit if somehow triggered
+    if (isViewMode) return; 
 
     setLoading(true);
     try {
@@ -130,7 +133,9 @@ export default function TaskFormPage({ user }) {
       data.append('description', formData.description);
       data.append('status', formData.status);
       data.append('assignedTo', formData.assignedTo || "");
-      data.append('project', formData.project || ""); 
+      
+      // ⭐ Force the active project ID into the payload
+      data.append('project', activeProjectId); 
       
       const mentionedIds = staffList
         .filter(s => formData.description.includes(`@${s.name}`))
@@ -154,11 +159,24 @@ export default function TaskFormPage({ user }) {
 
       navigate('/tasks');
     } catch (err) { 
+      // ⭐ Logs the exact validation error from Mongoose if it fails again
+      console.error("BACKEND REJECTION:", err.response?.data); 
       toast.error(err.response?.data?.message || "Save failed"); 
     } finally { 
       setLoading(false); 
     }
   };
+
+  // Guard against missing project selection
+  if (!activeProjectId) {
+    return (
+      <div className="p-20 max-w-4xl mx-auto text-center mt-10 bg-white rounded-2xl shadow-sm border border-gray-100">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">No Project Selected</h2>
+        <p className="text-gray-500 mb-6">You must select a project from the top navigation bar before managing tasks.</p>
+        <button onClick={() => navigate('/tasks')} className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold">Go Back</button>
+      </div>
+    );
+  }
 
   if (fetching) {
     return (
@@ -190,7 +208,7 @@ export default function TaskFormPage({ user }) {
               className={`w-full p-4 border border-gray-100 rounded-2xl font-bold text-lg outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:bg-white'}`}
               value={formData.title} 
               onChange={(e) => setFormData({ ...formData, title: e.target.value })} 
-              disabled={isViewMode} // ⭐ Disabled in View Mode
+              disabled={isViewMode}
               required 
             />
           </div>
@@ -204,7 +222,7 @@ export default function TaskFormPage({ user }) {
               className={`w-full p-4 border border-gray-100 rounded-2xl min-h-[150px] font-medium leading-relaxed outline-none transition-all ${isViewMode ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:bg-white'}`}
               value={formData.description} 
               onChange={handleDescriptionChange} 
-              disabled={isViewMode} // ⭐ Disabled in View Mode
+              disabled={isViewMode}
               placeholder="Describe requirements..."
             />
             
@@ -221,7 +239,7 @@ export default function TaskFormPage({ user }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Current Status</label>
               <select 
@@ -231,20 +249,8 @@ export default function TaskFormPage({ user }) {
                 disabled={isViewMode}
                 required
               >
+                {statusList.length === 0 && <option value="">No Active Statuses Available</option>}
                 {statusList.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
-              </select>
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Associated Project</label>
-              <select 
-                className={`w-full p-4 border border-gray-100 rounded-2xl font-bold outline-none ${isViewMode ? 'bg-gray-100 text-gray-600 cursor-not-allowed' : 'bg-gray-50 focus:ring-2 focus:ring-blue-500 cursor-pointer'}`}
-                value={formData.project} 
-                onChange={(e) => setFormData({ ...formData, project: e.target.value })}
-                disabled={isViewMode}
-              >
-                <option value="">No Project (Standalone Task)</option>
-                {projectList.map(p => <option key={p._id} value={p._id}>{p.title}</option>)}
               </select>
             </div>
 
@@ -272,7 +278,6 @@ export default function TaskFormPage({ user }) {
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               
-              {/* ⭐ Hide upload box in View Mode */}
               {!isViewMode && (
                 <div className="relative aspect-square bg-blue-50 border-2 border-dashed border-blue-200 rounded-2xl flex flex-col items-center justify-center text-blue-400 hover:bg-blue-100 transition-colors">
                   <input type="file" multiple accept="image/*" onChange={(e) => {
@@ -301,7 +306,6 @@ export default function TaskFormPage({ user }) {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               
-              {/* ⭐ Hide upload box in View Mode */}
               {!isViewMode && (
                 <div className="relative h-48 bg-purple-50 border-2 border-dashed border-purple-200 rounded-3xl flex flex-col items-center justify-center text-purple-400 hover:bg-purple-100 transition-colors">
                   <input type="file" multiple accept="video/*" onChange={handleVideoChange} className="absolute inset-0 opacity-0 cursor-pointer" />
@@ -335,7 +339,6 @@ export default function TaskFormPage({ user }) {
           </div>
         </div>
 
-        {/* ⭐ Conditionally Render the Action Buttons */}
         {isViewMode ? (
           <div className="pt-8 border-t border-gray-100 mt-8 flex justify-end">
             <button 

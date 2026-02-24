@@ -9,7 +9,9 @@ import {
   LogOut,
   Settings,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  FolderKanban,
+  AlertTriangle
 } from "lucide-react";
 
 export default function Sidebar({ user, handleLogout }) {
@@ -40,6 +42,30 @@ export default function Sidebar({ user, handleLogout }) {
       allowed: true, 
     },
     {
+      name: "Projects",
+      path: "/projects",
+      icon: <FolderKanban size={20} />,
+      allowed: can("projects_read"),
+    },
+    {
+      name: "Tasks",
+      path: "/tasks",
+      icon: <ClipboardList size={20} />,
+      allowed: can("tasks_read"),
+    },
+    {
+      name: "Team",
+      path: "/team",
+      icon: <Users size={20} />,
+      allowed: can("projects_read"),
+    },
+    {
+      name: "Issues",
+      path: "/issues",
+      icon: <AlertTriangle size={20} />,
+      allowed: can("tasks_read"),
+    },
+    {
       name: "Staff",
       path: "/admin/staff", 
       icon: <Users size={20} />,
@@ -50,18 +76,6 @@ export default function Sidebar({ user, handleLogout }) {
       path: "/admin/roles", 
       icon: <Shield size={20} />,
       allowed: can("roles_read"),
-    },
-     {
-      name: "Projects",
-      path: "/Projects",
-      icon: <ClipboardList size={20} />,
-      allowed: can("projects_read"),
-    },
-    {
-      name: "Tasks",
-      path: "/tasks",
-      icon: <ClipboardList size={20} />,
-      allowed: can("tasks_read"),
     },
     {
       name: "Permissions",

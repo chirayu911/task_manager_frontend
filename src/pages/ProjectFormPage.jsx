@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Loader, ArrowLeft, ChevronDown, Check } from 'lucide-react';
+import { Loader, ArrowLeft, Search, X } from 'lucide-react';
 import API from '../api';
 import { toast } from 'react-toastify';
-import FormActionButtons from '../components/FormActionButtons'; // ⭐ Imported
+import FormActionButtons from '../components/FormActionButtons';
 
 export default function ProjectFormPage() {
   const { id } = useParams();
@@ -15,8 +15,12 @@ export default function ProjectFormPage() {
   const [staffList, setStaffList] = useState([]);
   
   const [formData, setFormData] = useState({ title: '', description: '', assignedUsers: [] });
+  
+  // New states for the multi-select search bar
+  const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     const initData = async () => {
@@ -34,23 +38,39 @@ export default function ProjectFormPage() {
         }
       } catch (err) {
         toast.error("Failed to load data");
-      } finally { setPageLoading(false); }
+      } finally { 
+        setPageLoading(false); 
+      }
     };
     initData();
 
+    // Close dropdown when clicking outside
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsDropdownOpen(false);
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [id, isEditMode]);
 
-  const handleCheckboxChange = (userId) => {
+  // Handle adding a user from the dropdown
+  const handleAddUser = (userId) => {
+    if (!formData.assignedUsers.includes(userId)) {
+      setFormData(prev => ({
+        ...prev,
+        assignedUsers: [...prev.assignedUsers, userId]
+      }));
+    }
+    setSearchQuery('');
+    inputRef.current?.focus(); // Keep focus on input for rapid selection
+  };
+
+  // Handle removing a user via the bubble's "X"
+  const handleRemoveUser = (userId) => {
     setFormData(prev => ({
       ...prev,
-      assignedUsers: prev.assignedUsers.includes(userId) 
-        ? prev.assignedUsers.filter(id => id !== userId) 
-        : [...prev.assignedUsers, userId]
+      assignedUsers: prev.assignedUsers.filter(id => id !== userId)
     }));
   };
 
@@ -70,57 +90,119 @@ export default function ProjectFormPage() {
       navigate('/projects');
     } catch (err) {
       toast.error(isEditMode ? "Failed to update project" : "Failed to create project");
-    } finally { setLoading(false); }
+    } finally { 
+      setLoading(false); 
+    }
   };
+
+  // Filter staff to exclude already selected users and match the search query
+  const availableStaff = staffList.filter(staff => 
+    !formData.assignedUsers.includes(staff._id) &&
+    staff.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   if (pageLoading) return <div className="flex justify-center p-20"><Loader className="animate-spin text-blue-600" size={40}/></div>;
 
   return (
     <div className="p-8 max-w-3xl mx-auto min-h-screen bg-gray-50">
       <div className="flex items-center gap-4 mb-8">
-        <button onClick={() => navigate('/projects')} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><ArrowLeft size={20} /></button>
+        <button type="button" onClick={() => navigate('/projects')} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+          <ArrowLeft size={20} />
+        </button>
         <h2 className="text-2xl font-bold text-gray-800">{isEditMode ? "Edit Project" : "Create New Project"}</h2>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 space-y-6">
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Project Title</label>
-          <input type="text" className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} required />
+          <input 
+            type="text" 
+            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+            value={formData.title} 
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })} 
+            required 
+          />
         </div>
 
         <div>
           <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Project Description</label>
-          <textarea className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none min-h-[120px]" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} />
+          <textarea 
+            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all min-h-[120px]" 
+            value={formData.description} 
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })} 
+          />
         </div>
 
         <div className="relative" ref={dropdownRef}>
           <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Assign Team Members</label>
-          <div onClick={() => setIsDropdownOpen(!isDropdownOpen)} className="w-full p-3 border border-gray-300 rounded-xl bg-white cursor-pointer flex justify-between items-center hover:bg-gray-50 transition-colors">
-            <span className={formData.assignedUsers.length === 0 ? "text-gray-400" : "text-gray-800 font-medium"}>
-              {formData.assignedUsers.length === 0 ? "Select members..." : `${formData.assignedUsers.length} member(s) selected`}
-            </span>
-            <ChevronDown size={20} className={`text-gray-500 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+          
+          {/* Multi-Select Search Container */}
+          <div className="w-full p-2 border border-gray-300 rounded-xl bg-white flex flex-wrap gap-2 items-center focus-within:ring-2 focus-within:ring-blue-500 transition-all min-h-[52px]">
+            
+            {/* Selected User Bubbles */}
+            {formData.assignedUsers.map(userId => {
+              const user = staffList.find(s => s._id === userId);
+              if (!user) return null; // Safety check while loading
+              return (
+                <span key={userId} className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-800 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm">
+                  {user.name}
+                  <button 
+                    type="button" 
+                    onClick={() => handleRemoveUser(userId)}
+                    className="hover:bg-blue-200 p-0.5 rounded-full transition-colors"
+                  >
+                    <X size={14} className="text-blue-600" />
+                  </button>
+                </span>
+              );
+            })}
+
+            {/* Search Input inside the box */}
+            <div className="flex-1 min-w-[150px] flex items-center gap-2 px-2">
+              <Search size={16} className="text-gray-400" />
+              <input
+                ref={inputRef}
+                type="text"
+                className="w-full outline-none bg-transparent text-sm p-1"
+                placeholder={formData.assignedUsers.length === 0 ? "Search and select members..." : "Add more members..."}
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsDropdownOpen(true);
+                }}
+                onFocus={() => setIsDropdownOpen(true)}
+              />
+            </div>
           </div>
 
+          {/* Search Results Dropdown */}
           {isDropdownOpen && (
             <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
-              {staffList.map((staff) => (
-                <label key={staff._id} className="flex items-center gap-3 p-3 hover:bg-blue-50 cursor-pointer border-b last:border-none border-gray-100">
-                  <div className={`w-5 h-5 rounded border flex items-center justify-center ${formData.assignedUsers.includes(staff._id) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
-                    {formData.assignedUsers.includes(staff._id) && <Check size={14} className="text-white" />}
+              {availableStaff.length > 0 ? (
+                availableStaff.map((staff) => (
+                  <div 
+                    key={staff._id} 
+                    onClick={() => handleAddUser(staff._id)}
+                    className="flex items-center gap-3 p-3 hover:bg-blue-50 cursor-pointer border-b last:border-none border-gray-100 transition-colors"
+                  >
+                    <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                      {staff.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-800">{staff.name}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-widest">{staff.role?.name || 'Staff'}</p>
+                    </div>
                   </div>
-                  <input type="checkbox" className="hidden" checked={formData.assignedUsers.includes(staff._id)} onChange={() => handleCheckboxChange(staff._id)} />
-                  <div>
-                    <p className="text-sm font-bold text-gray-800">{staff.name}</p>
-                    <p className="text-[10px] text-gray-500 uppercase">{staff.role?.name || 'Staff'}</p>
-                  </div>
-                </label>
-              ))}
+                ))
+              ) : (
+                <div className="p-4 text-center text-sm text-gray-500 italic">
+                  {searchQuery ? "No matching staff found" : "All staff members selected"}
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* ⭐ Standardized Action Buttons */}
         <FormActionButtons 
           loading={loading} 
           isEditMode={isEditMode} 

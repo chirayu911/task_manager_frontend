@@ -5,18 +5,20 @@ import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
 import TableControls from '../components/TableControls';
-import ConfirmModal from '../components/ConfirmModal'; 
-import Declaration from '../components/Declaration';  
+import ConfirmModal from '../components/ConfirmModal';
+import Declaration from '../components/Declaration'; 
 
-export default function TaskStatusPage({ user, socket }) {
+export default function TaskStatusPage({ user, socket, activeProjectId }) {
   const [statuses, setStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Modal & Feedback States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [statusToDelete, setStatusToDelete] = useState(null);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
 
+  // Search and Pagination States
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(8);
@@ -26,30 +28,26 @@ export default function TaskStatusPage({ user, socket }) {
   [user]);
 
   const perms = useMemo(() => user?.permissions || [], [user]);
-
-  const isAdmin = useMemo(() => 
-    roleName === 'admin' || perms.includes('*'), 
-  [roleName, perms]);
-
+  const isAdmin = useMemo(() => roleName === 'admin' || perms.includes('*'), [roleName, perms]);
   const can = useCallback((perm) => isAdmin || perms.includes(perm), [isAdmin, perms]);
 
+  // ⭐ Fetch statuses specifically for the active project
   const fetchStatuses = useCallback(async () => {
+    if (!activeProjectId) return;
     try {
       setLoading(true);
-      const { data } = await API.get('/task-statuses');
+      const { data } = await API.get('/task-statuses', { params: { project: activeProjectId } });
       setStatuses(data);
     } catch (err) {
       setFeedback({ type: 'error', message: "Failed to load statuses" });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeProjectId]);
 
   useEffect(() => {
-    if (user) {
-      fetchStatuses();
-    }
-  }, [user, fetchStatuses]);
+    if (user && activeProjectId) fetchStatuses();
+  }, [user, activeProjectId, fetchStatuses]);
 
   useEffect(() => {
     if (socket) {
@@ -76,9 +74,7 @@ export default function TaskStatusPage({ user, socket }) {
   };
 
   const filteredStatuses = useMemo(() => {
-    return statuses.filter(s => 
-      s.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return statuses.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [statuses, searchTerm]);
 
   const currentTableData = useMemo(() => {
@@ -89,6 +85,16 @@ export default function TaskStatusPage({ user, socket }) {
 
   if (!user) return null;
 
+  // ⭐ Enforce Project Selection
+  if (!activeProjectId) {
+    return (
+      <div className="p-20 max-w-4xl mx-auto text-center mt-10 bg-white rounded-2xl shadow-sm border border-gray-100">
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">No Project Selected</h2>
+        <p className="text-gray-500">Please select a project from the top navigation bar to manage task statuses.</p>
+      </div>
+    );
+  }
+
   if (loading) return (
     <div className="flex justify-center p-20">
       <Loader className="animate-spin text-blue-600" size={40} />
@@ -97,35 +103,26 @@ export default function TaskStatusPage({ user, socket }) {
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
-      <Declaration 
-        type={feedback.type} 
-        message={feedback.message} 
-        onClose={() => setFeedback({ type: '', message: '' })} 
-      />
+      <Declaration type={feedback.type} message={feedback.message} onClose={() => setFeedback({ type: '', message: '' })} />
 
-      {/* Header Row: Title & Create Button */}
-      <div className="flex justify-between items-start md:items-center mb-6 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
             <Settings className="text-blue-600" /> Task Statuses
           </h2>
           <p className="text-sm text-gray-500 mt-1">Manage the available stages for your team's workflow.</p>
         </div>
-        {can('roles_update') && (
-          <CreateButton 
-            onClick={() => navigate("/admin/task-status/create")} 
-            label="Add Status" 
+        
+        <div className="flex w-full md:w-auto gap-3">
+          <SearchBar 
+            value={searchTerm} 
+            onChange={(val) => { setSearchTerm(val); setCurrentPage(1); }} 
+            placeholder="Search statuses..." 
           />
-        )}
-      </div>
-
-      {/* Filter Row: Search Bar Underneath */}
-      <div className="mb-8 w-full md:max-w-md">
-        <SearchBar 
-          value={searchTerm} 
-          onChange={(val) => { setSearchTerm(val); setCurrentPage(1); }} 
-          placeholder="Search statuses..." 
-        />
+          {can('roles_update') && (
+            <CreateButton onClick={() => navigate("/admin/task-status/create")} label="Add Status" />
+          )}
+        </div>
       </div>
 
       <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
@@ -144,9 +141,7 @@ export default function TaskStatusPage({ user, socket }) {
                   <td className="px-6 py-5 font-bold text-gray-800">{s.name}</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border ${
-                      s.status === 'active' 
-                        ? 'bg-green-50 text-green-700 border-green-100' 
-                        : 'bg-red-50 text-red-700 border-red-100'
+                      s.status === 'active' ? 'bg-green-50 text-green-700 border-green-100' : 'bg-red-50 text-red-700 border-red-100'
                     }`}>
                       {s.status === 'active' ? <CheckCircle2 size={12}/> : <XCircle size={12}/>}
                       {s.status}

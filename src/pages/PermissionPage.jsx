@@ -133,7 +133,7 @@ export default function PermissionPage({ user, socket }) {
           <thead className="bg-gray-50/50 border-b border-gray-100">
             <tr className="text-xs font-bold text-gray-400 uppercase tracking-widest">
               <th className="px-6 py-5">Name</th>
-              <th className="px-6 py-5">Value (Slug)</th>
+              <th className="px-6 py-5">Value</th>
               <th className="px-6 py-5 text-right">Actions</th>
             </tr>
           </thead>
