@@ -11,16 +11,24 @@ import {
   ChevronUp,
   ChevronDown,
   FolderKanban,
-  AlertTriangle
+  AlertTriangle,
+  Briefcase,
+  CreditCard,
+  FileText 
 } from "lucide-react";
+import ConfirmModal from "./ConfirmModal"; 
 
 export default function Sidebar({ user, handleLogout }) {
   const location = useLocation();
   
-  // ⭐ State for toggling the profile card
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false); 
+  
+  const [isProjectsOpen, setIsProjectsOpen] = useState(() => {
+    const projectPaths = ["/projects", "/tasks", "/issues", "/team", "/admin/task-status"];
+    return projectPaths.includes(location.pathname);
+  });
 
-  // Logic: Memoize role and perms to ensure stable dependencies
   const roleName = useMemo(() => 
     typeof user?.role === "object" ? user.role?.name : user?.role, 
   [user]);
@@ -31,7 +39,6 @@ export default function Sidebar({ user, handleLogout }) {
     roleName === "admin" || perms.includes("*"), 
   [roleName, perms]);
 
-  // Logic: Helper to decide if a link should show
   const can = (permission) => isAdmin || perms.includes(permission);
 
   const menuItems = [
@@ -43,27 +50,23 @@ export default function Sidebar({ user, handleLogout }) {
     },
     {
       name: "Projects",
-      path: "/projects",
       icon: <FolderKanban size={20} />,
-      allowed: can("projects_read"),
+      isSubmenu: true, 
+      allowed: can("projects_read") || can("tasks_read"), 
+      children: [
+        { name: "Projects", path: "/projects", icon: <Briefcase size={20} />, allowed: can("projects_read") },
+        { name: "Tasks", path: "/tasks", icon: <ClipboardList size={20} />, allowed: can("tasks_read") },
+        { name: "Issues", path: "/issues", icon: <AlertTriangle size={20} />, allowed: can("tasks_read") },
+        { name: "Team", path: "/team", icon: <Users size={20} />, allowed: can("projects_read") },
+        { name: "Task Statuses", path: "/admin/task-status", icon: <Settings size={20} />, allowed: can("roles_update") },
+        { name: "Documents", path: "/documents", icon: <FileText size={20} />, allowed: can("projects_read") },
+      ]
     },
     {
-      name: "Tasks",
-      path: "/tasks",
-      icon: <ClipboardList size={20} />,
-      allowed: can("tasks_read"),
-    },
-    {
-      name: "Team",
-      path: "/team",
-      icon: <Users size={20} />,
-      allowed: can("projects_read"),
-    },
-    {
-      name: "Issues",
-      path: "/issues",
-      icon: <AlertTriangle size={20} />,
-      allowed: can("tasks_read"),
+      name: "Subscriptions",
+      path: "/admin/subscriptions", 
+      icon: <CreditCard size={20} />,
+      allowed: isAdmin, 
     },
     {
       name: "Staff",
@@ -83,111 +86,168 @@ export default function Sidebar({ user, handleLogout }) {
       icon: <ShieldPlus size={20} />,
       allowed: can("permissions_read"),
     },
-    {
-      name: "Task Statuses",
-      path: "/admin/task-status", 
-      icon: <Settings size={20} />, 
-      allowed: can("roles_update"), 
-    },
   ];
 
   return (
-    <div className="w-64 bg-gray-900 min-h-screen text-white flex flex-col fixed left-0 top-0 shadow-xl z-40">
-      <div className="p-6 border-b border-gray-800">
-        <h1 className="text-2xl font-bold text-blue-500">Task Manager</h1>
-        <p className="text-xs text-gray-400 mt-1 capitalize">{roleName} Panel</p>
-      </div>
-
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
-        {menuItems.map((item) => {
-          if (!item.allowed) return null;
-
-          const isActive = location.pathname === item.path;
-
-          return (
-            <Link
-              key={item.name} 
-              to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-                isActive
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20"
-                  : "text-gray-400 hover:bg-gray-800/50 hover:text-white"
-              }`}
-            >
-              {item.icon}
-              {item.name}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* ⭐ Updated Profile Section */}
-      <div className="p-4 border-t border-gray-800 bg-gray-900/80 relative">
+    <>
+      <div className="w-64 bg-white dark:bg-gray-950 h-screen text-gray-800 dark:text-white flex flex-col fixed left-0 top-0 shadow-xl dark:shadow-none border-r border-gray-200 dark:border-gray-800 z-40 transition-colors duration-300">
         
-        {/* Expanded Profile Card */}
-        {isProfileOpen && (
-          <div className="absolute bottom-full left-0 w-full p-4 pb-2 z-50">
-            <div className="bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 p-5 transform transition-all">
-              <div className="flex flex-col items-center mb-4">
-                <div className="w-16 h-16 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-inner mb-3">
-                  {user?.name?.charAt(0).toUpperCase() || 'U'}
-                </div>
-                <h3 className="text-white font-bold text-lg leading-tight">{user?.name}</h3>
-                <p className="text-blue-400 text-xs font-medium">@{user?.username || 'user'}</p>
-              </div>
+        {/* Fixed Header */}
+        <div className="p-6 border-b border-gray-200 dark:border-gray-800 shrink-0">
+          <h1 className="text-2xl font-black text-primary-600 dark:text-primary-500 tracking-tight">Task Manager</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium uppercase tracking-widest">{roleName} Panel</p>
+        </div>
+
+        {/* Scrollable Nav Area */}
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {menuItems.map((item) => {
+            if (!item.allowed) return null;
+
+            if (item.isSubmenu) {
+              const isAnyChildActive = item.children.some(child => location.pathname === child.path);
               
-              <div className="space-y-3 text-sm border-t border-gray-700 pt-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500 text-xs uppercase font-bold tracking-wider">Email</span>
-                  <span className="text-gray-300 truncate max-w-[120px]" title={user?.email}>
-                    {user?.email}
-                  </span>
+              return (
+                <div key={item.name} className="space-y-1.5">
+                  <button
+                    onClick={() => setIsProjectsOpen(!isProjectsOpen)}
+                    data-btn-id="4"
+                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold transition-all ${
+                      isAnyChildActive && !isProjectsOpen
+                        ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white" 
+                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {item.icon}
+                      {item.name}
+                    </div>
+                    {isProjectsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+
+                  {isProjectsOpen && (
+                    <div className="pl-4 space-y-1.5 animate-in slide-in-from-top-2 duration-200 mt-1.5">
+                      {item.children.map((child) => {
+                        if (!child.allowed) return null;
+                        const isChildActive = location.pathname === child.path;
+                        
+                        return (
+                          <Link
+                            key={child.name}
+                            to={child.path}
+                            data-btn-id="7"
+                            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold transition-all ${
+                              isChildActive
+                                ? "bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400"
+                                : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+                            }`}
+                          >
+                            {child.icon}
+                            {child.name}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500 text-xs uppercase font-bold tracking-wider">Role</span>
-                  <span className="bg-gray-900 text-blue-400 px-2 py-1 rounded-md text-xs font-bold uppercase border border-gray-700">
-                    {roleName}
-                  </span>
+              );
+            }
+
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.name} 
+                to={item.path}
+                data-btn-id="7"
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${
+                  isActive
+                    ? "bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+                }`}
+              >
+                {item.icon}
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Fixed Footer Profile Section */}
+        <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-950/80 relative shrink-0">
+          
+          {isProfileOpen && (
+            <div className="absolute bottom-full left-0 w-full p-4 pb-2 z-50">
+              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-5 transform transition-all">
+                <div className="flex flex-col items-center mb-4">
+                  <div className="w-16 h-16 bg-gradient-to-tr from-primary-600 to-indigo-500 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-inner mb-3">
+                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <h3 className="text-gray-900 dark:text-white font-bold text-lg leading-tight">{user?.name}</h3>
+                  <p className="text-primary-500 dark:text-primary-400 text-xs font-bold">@{user?.username || 'user'}</p>
+                </div>
+                
+                <div className="space-y-3 text-sm border-t border-gray-100 dark:border-gray-800 pt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 dark:text-gray-500 text-[10px] uppercase font-black tracking-wider">Email</span>
+                    <span className="text-gray-700 dark:text-gray-300 font-medium truncate max-w-[120px]" title={user?.email}>
+                      {user?.email}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-400 dark:text-gray-500 text-[10px] uppercase font-black tracking-wider">Role</span>
+                    <span className="bg-gray-100 dark:bg-gray-800 text-primary-600 dark:text-primary-400 px-2 py-1 rounded-md text-[10px] font-black uppercase border border-gray-200 dark:border-gray-700">
+                      {roleName}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Profile Toggle Button */}
-        <button
-          onClick={() => setIsProfileOpen(!isProfileOpen)}
-          className="flex items-center justify-between w-full p-2 mb-3 hover:bg-gray-800 rounded-xl transition-colors group cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-md">
-              {user?.name?.charAt(0).toUpperCase() || 'U'}
-            </div>
-            <div className="text-left">
-              <p className="text-sm font-bold text-gray-100 truncate w-28 group-hover:text-blue-400 transition-colors">
-                {user?.name}
-              </p>
-              <p className="text-[10px] text-gray-500 truncate uppercase tracking-wider">
-                View Profile
-              </p>
-            </div>
-          </div>
-          {isProfileOpen ? (
-            <ChevronDown size={18} className="text-gray-500 group-hover:text-white transition-colors" />
-          ) : (
-            <ChevronUp size={18} className="text-gray-500 group-hover:text-white transition-colors" />
           )}
-        </button>
 
-        {/* Sign Out Button */}
-        <button
-          onClick={handleLogout}
-          className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-xl font-bold transition-all active:scale-95 border border-red-500/20 hover:border-red-500"
-        >
-          <LogOut size={16} />
-          Sign Out
-        </button>
+          <button
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            data-btn-id="4"
+            className="flex items-center justify-between w-full p-2 mb-3 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-xl transition-colors group cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-sm">
+                {user?.name?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate w-28 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                  {user?.name}
+                </p>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold truncate uppercase tracking-widest">
+                  View Profile
+                </p>
+              </div>
+            </div>
+            {isProfileOpen ? (
+              <ChevronDown size={18} className="text-gray-400 group-hover:text-gray-600 dark:group-hover:text-white transition-colors" />
+            ) : (
+              <ChevronUp size={18} className="text-gray-400 group-hover:text-gray-600 dark:group-hover:text-white transition-colors" />
+            )}
+          </button>
+
+          <button
+            onClick={() => setIsLogoutModalOpen(true)}
+            data-btn-id="6"
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white rounded-xl font-bold transition-all active:scale-95 border border-red-100 dark:border-red-500/20 hover:border-red-500"
+          >
+            <LogOut size={16} />
+            Sign Out
+          </button>
+
+        </div>
       </div>
-    </div>
+
+      <ConfirmModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={handleLogout}
+        title="Sign Out"
+        message="Are you sure you want to sign out of your account? You will need to log back in to access the dashboard."
+        confirmText="Yes, Sign Out"
+      />
+    </>
   );
 }

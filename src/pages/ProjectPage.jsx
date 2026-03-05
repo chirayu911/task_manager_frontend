@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Loader, FolderKanban, Users } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
@@ -11,7 +11,6 @@ import Declaration from '../components/Declaration';
 export default function ProjectPage({ user }) {
   const [projects, setProjects] = useState([]);
   const [pageLoading, setPageLoading] = useState(true);
-  
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -21,6 +20,18 @@ export default function ProjectPage({ user }) {
   const [feedback, setFeedback] = useState({ type: '', message: '' });
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // ⭐ BUG FIX 6 & 7: Intercept success messages passed from the Form page
+  useEffect(() => {
+    if (location.state?.feedback) {
+      setFeedback(location.state.feedback);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Clear the state so it doesn't reappear on page refresh
+      navigate(location.pathname, { replace: true, state: {} });
+      setTimeout(() => setFeedback({ type: '', message: '' }), 4000);
+    }
+  }, [location, navigate]);
 
   const roleName = useMemo(() => 
     typeof user?.role === 'object' ? user.role?.name : user?.role, 
@@ -61,9 +72,14 @@ export default function ProjectPage({ user }) {
     try {
       await API.delete(`/projects/${projectToDelete}`);
       setProjects(prev => prev.filter(p => p._id !== projectToDelete));
-      setFeedback({ type: 'success', message: "Project deleted successfully" });
-      setTimeout(() => setFeedback({ type: '', message: '' }), 3000);
+      setIsModalOpen(false);
+      
+      // ⭐ BUG FIX 8: Make sure delete message displays properly
+      setFeedback({ type: 'success', message: "Delete Successful! Project removed." });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setTimeout(() => setFeedback({ type: '', message: '' }), 4000);
     } catch (err) { 
+      setIsModalOpen(false);
       setFeedback({ type: 'error', message: "Project deletion failed. Check permissions." });
     }
   };
@@ -82,30 +98,28 @@ export default function ProjectPage({ user }) {
   }, [filteredProjects, currentPage, itemsPerPage]);
 
   if (!user) return null;
-  if (pageLoading) return <div className="flex justify-center p-20"><Loader className="animate-spin text-blue-600" size={40}/></div>;
+  if (pageLoading) return <div className="flex justify-center p-20"><Loader className="animate-spin text-primary-600 dark:text-primary-400" size={40}/></div>;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 max-w-7xl mx-auto transition-colors">
       <Declaration 
         type={feedback.type} 
         message={feedback.message} 
         onClose={() => setFeedback({ type: '', message: '' })} 
       />
 
-      {/* Header Row: Title & Create Button */}
       <div className="flex justify-between items-start md:items-center mb-6 gap-4">
         <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
-            <FolderKanban className="text-blue-600"/> Project Portfolio
+          <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800 dark:text-white">
+            <FolderKanban className="text-primary-600 dark:text-primary-400"/> Project Portfolio
           </h2>
-          <p className="text-gray-500 text-sm">Manage high-level project containers and team assignments</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Manage high-level project containers and team assignments</p>
         </div>
         {can('projects_create') && (
           <CreateButton onClick={() => navigate("/projects/create")} label="New Project" />
         )}
       </div>
 
-      {/* Filter Row: Search Bar Underneath */}
       <div className="mb-8 w-full md:max-w-md">
         <SearchBar 
           value={searchTerm} 
@@ -114,21 +128,21 @@ export default function ProjectPage({ user }) {
         />
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors">
         <table className="w-full text-left">
-          <thead className="bg-gray-50/50 border-b border-gray-100">
-            <tr className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+          <thead className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+            <tr className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
               <th className="px-6 py-4">Project Details</th>
               <th className="px-6 py-4">Assigned Team</th>
               <th className="px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
             {currentTableData.length > 0 ? currentTableData.map(project => (
-              <tr key={project._id} className="hover:bg-gray-50/50 transition-colors">
+              <tr key={project._id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
                 <td className="px-6 py-4">
-                  <div className="font-bold text-gray-800 text-base">{project.title}</div>
-                  <div className="text-sm text-gray-500 line-clamp-1 mt-1 max-w-md">
+                  <div className="font-bold text-gray-800 dark:text-gray-200 text-base">{project.title}</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1 mt-1 max-w-md">
                     {project.description || "No description provided."}
                   </div>
                 </td>
@@ -138,7 +152,7 @@ export default function ProjectPage({ user }) {
                       project.assignedUsers.map(member => (
                         <span 
                           key={member._id} 
-                          className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-1 rounded-full border border-blue-100 uppercase"
+                          className="inline-flex items-center gap-1 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 text-[10px] font-bold px-2 py-1 rounded-full border border-primary-100 dark:border-primary-800 uppercase"
                           title={member.email}
                         >
                           <Users size={10} />
@@ -146,7 +160,7 @@ export default function ProjectPage({ user }) {
                         </span>
                       ))
                     ) : (
-                      <span className="text-xs text-gray-400 italic">No team assigned</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500 italic">No team assigned</span>
                     )}
                   </div>
                 </td>
@@ -159,7 +173,7 @@ export default function ProjectPage({ user }) {
               </tr>
             )) : (
               <tr>
-                <td colSpan="3" className="px-6 py-20 text-center text-gray-400 italic font-medium">
+                <td colSpan="3" className="px-6 py-20 text-center text-gray-400 dark:text-gray-500 italic font-medium">
                   No projects found.
                 </td>
               </tr>

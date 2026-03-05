@@ -1,20 +1,22 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ChevronDown, FolderKanban } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback, useContext } from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronDown, FolderKanban, Sun, Moon } from 'lucide-react';
 import API from '../api';
+import { ThemeContext } from '../context/ThemeContext'; // ⭐ Fixed import to match the context file
 
 export default function Navbar({ user, activeProjectId, setActiveProjectId }) {
   const [isProjectsOpen, setIsProjectsOpen] = useState(false);
   const [projectList, setProjectList] = useState([]);
   const projectsRef = useRef(null);
-  const navigate = useNavigate();
+  
+  // ⭐ Extract theme state and toggle function using standard useContext
+  const { isDarkMode, toggleTheme } = useContext(ThemeContext);
 
   const fetchProjects = useCallback(async () => {
     try {
       const { data } = await API.get('/projects');
       setProjectList(data || []);
       
-      // Auto-select first project if none is active
       if (!activeProjectId && data && data.length > 0) {
         setActiveProjectId(data[0]._id);
       }
@@ -40,17 +42,29 @@ export default function Navbar({ user, activeProjectId, setActiveProjectId }) {
   const activeProject = projectList.find(p => p._id === activeProjectId);
 
   return (
-    <nav className="bg-white border-b border-gray-200 fixed top-0 left-64 w-[calc(100%-16rem)] z-[100] h-16 shadow-sm">
-      <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-end">
+    <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 fixed top-0 left-64 w-[calc(100%-16rem)] z-[100] h-16 shadow-sm transition-colors duration-300">
+      <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-end gap-4">
         
+        {/* ⭐ Theme Toggle Button */}
+        <button
+          onClick={toggleTheme}
+          data-btn-id="4"
+          className="p-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+          title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
+
+        {/* Project Selector */}
         <div className="relative" ref={projectsRef}>
           <button 
             onClick={() => setIsProjectsOpen(!isProjectsOpen)}
-            className={`flex items-center gap-3 p-2 rounded-xl transition-all border border-transparent hover:bg-gray-50 ${
-              isProjectsOpen ? 'text-blue-600 bg-gray-50' : 'text-gray-600'
+            data-btn-id="4"
+            className={`flex items-center gap-3 p-2 rounded-xl transition-all border border-transparent hover:bg-gray-50 dark:hover:bg-gray-800 ${
+              isProjectsOpen ? 'text-primary-600 dark:text-primary-400 bg-gray-50 dark:bg-gray-800' : 'text-gray-600 dark:text-gray-300'
             }`}
           >
-            <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shadow-sm">
+            <div className="w-8 h-8 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-lg flex items-center justify-center shadow-sm transition-colors">
               <FolderKanban size={18} />
             </div>
             <div className="hidden sm:block text-left">
@@ -61,13 +75,14 @@ export default function Navbar({ user, activeProjectId, setActiveProjectId }) {
           </button>
 
           {isProjectsOpen && (
-            <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-100 rounded-2xl shadow-2xl py-2 animate-in fade-in zoom-in duration-150 z-[110]">
-              <div className="px-4 py-3 border-b border-gray-50 mb-1 flex justify-between items-center">
+            <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl dark:shadow-none py-2 animate-in fade-in zoom-in duration-150 z-[110] transition-colors">
+              <div className="px-4 py-3 border-b border-gray-50 dark:border-gray-700 mb-1 flex justify-between items-center">
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Available Projects</span>
                 <Link 
                   to="/projects" 
                   onClick={() => setIsProjectsOpen(false)} 
-                  className="text-[10px] text-blue-600 font-bold hover:underline"
+                  data-btn-id="7"
+                  className="text-[10px] text-primary-600 dark:text-primary-400 font-bold hover:underline"
                 >
                   Manage All
                 </Link>
@@ -78,16 +93,16 @@ export default function Navbar({ user, activeProjectId, setActiveProjectId }) {
                   projectList.map((project) => (
                     <button
                       key={project._id}
-                      className={`w-full text-left block px-4 py-3 hover:bg-blue-50 transition-colors group border-l-4 ${
-                        activeProjectId === project._id ? 'border-blue-600 bg-blue-50' : 'border-transparent hover:border-blue-600'
+                      data-btn-id="7"
+                      className={`w-full text-left block px-4 py-3 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors group border-l-4 ${
+                        activeProjectId === project._id ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-400' : 'border-transparent hover:border-primary-600 dark:hover:border-primary-400'
                       }`}
                       onClick={() => {
                         setActiveProjectId(project._id);
                         setIsProjectsOpen(false);
-                        navigate('/tasks'); // ⭐ Redirects to tasks when project changes
                       }}
                     >
-                      <p className={`text-sm font-bold truncate ${activeProjectId === project._id ? 'text-blue-700' : 'text-gray-800 group-hover:text-blue-700'}`}>
+                      <p className={`text-sm font-bold truncate transition-colors ${activeProjectId === project._id ? 'text-primary-700 dark:text-primary-300' : 'text-gray-800 dark:text-gray-200 group-hover:text-primary-700 dark:group-hover:text-primary-400'}`}>
                         {project.title}
                       </p>
                       <p className="text-[10px] text-gray-400 truncate mt-0.5">

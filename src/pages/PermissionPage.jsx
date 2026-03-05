@@ -1,21 +1,31 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { ShieldPlus, Loader } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
 import TableControls from '../components/TableControls';
 import ConfirmModal from '../components/ConfirmModal';
-import Declaration from '../components/Declaration';
+import Notification from '../components/Notification'; // ⭐ Swapped fixed Declaration for floating Notification
 
 export default function PermissionPage({ user, socket }) {
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [permToDelete, setPermToDelete] = useState(null);
-  const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const [notification, setNotification] = useState(null); // ⭐ Switched state to notification
+
+  // ⭐ BUG FIX: Intercept success messages passed from the Form page router state
+  useEffect(() => {
+    if (location.state?.feedback) {
+      setNotification(location.state.feedback);
+      // Clean up the state so it doesn't fire again on manual page refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -41,7 +51,7 @@ export default function PermissionPage({ user, socket }) {
       const { data } = await API.get('/permissions');
       setPermissions(data);
     } catch (err) { 
-      setFeedback({ type: 'error', message: 'Failed to load permissions.' });
+      setNotification({ type: 'error', message: 'Failed to load permissions.' });
     } finally {
       setLoading(false);
     }
@@ -67,10 +77,12 @@ export default function PermissionPage({ user, socket }) {
     try {
       await API.delete(`/permissions/${permToDelete}`);
       setPermissions(prev => prev.filter(p => p._id !== permToDelete));
-      setFeedback({ type: 'success', message: 'Permission deleted successfully.' });
-      setTimeout(() => setFeedback({ type: '', message: '' }), 3000);
+      setIsModalOpen(false);
+      // ⭐ BUG FIX: Will trigger floating Notification so it can't be missed if scrolled down
+      setNotification({ type: 'success', message: 'Delete Successful! Permission permanently removed.' });
     } catch (err) { 
-      setFeedback({ type: 'error', message: 'Error deleting permission. It may be in use by a role.' });
+      setIsModalOpen(false);
+      setNotification({ type: 'error', message: 'Error deleting permission. It may be in use by a role.' });
     }
   };
 
@@ -90,31 +102,34 @@ export default function PermissionPage({ user, socket }) {
   if (!user) return null;
   if (loading) return (
     <div className="flex justify-center p-20">
-      <Loader className="animate-spin text-purple-600" size={40} />
+      <Loader className="animate-spin text-primary-600 dark:text-primary-400" size={40} />
     </div>
   );
 
   return (
-    <div className="p-8 max-w-6xl mx-auto min-h-screen">
-      <Declaration 
-        type={feedback.type} 
-        message={feedback.message} 
-        onClose={() => setFeedback({ type: '', message: '' })} 
-      />
+    <div className="p-8 max-w-6xl mx-auto min-h-screen transition-colors">
+      
+      {/* ⭐ Floating Notification Component */}
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
 
       {/* Header Row: Title & Create Button */}
       <div className="flex justify-between items-start md:items-center mb-6 gap-4">
         <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
-            <ShieldPlus className="text-purple-600" /> Permission Management
+          <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800 dark:text-white">
+            <ShieldPlus className="text-primary-600 dark:text-primary-400" /> Permission Management
           </h2>
-          <p className="text-gray-500 text-sm mt-1">Configure individual system access slugs.</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Configure individual system access slugs.</p>
         </div>
         {can('permissions_create') && (
           <CreateButton 
             onClick={() => navigate("/admin/permissions/create")} 
             label="New Permission" 
-            color="purple"
           />
         )}
       </div>
@@ -128,21 +143,21 @@ export default function PermissionPage({ user, socket }) {
         />
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors">
         <table className="w-full text-left">
-          <thead className="bg-gray-50/50 border-b border-gray-100">
-            <tr className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+          <thead className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+            <tr className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
               <th className="px-6 py-5">Name</th>
               <th className="px-6 py-5">Value</th>
               <th className="px-6 py-5 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
-            {currentTableData.map((perm) => (
-              <tr key={perm._id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="px-6 py-4 font-bold text-gray-800">{perm.name}</td>
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
+            {currentTableData.length > 0 ? currentTableData.map((perm) => (
+              <tr key={perm._id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors">
+                <td className="px-6 py-4 font-bold text-gray-800 dark:text-gray-200">{perm.name}</td>
                 <td className="px-6 py-4">
-                  <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded text-gray-600 border">
+                  <span className="font-mono text-xs bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
                     {perm.value}
                   </span>
                 </td>
@@ -157,7 +172,13 @@ export default function PermissionPage({ user, socket }) {
                   </div>
                 </td>
               </tr>
-            ))}
+            )) : (
+              <tr>
+                <td colSpan="3" className="px-6 py-20 text-center text-gray-400 dark:text-gray-500 italic">
+                  No permissions found matching your search.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
 

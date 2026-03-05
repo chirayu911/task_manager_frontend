@@ -1,41 +1,40 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Users, Loader } from 'lucide-react';
 import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
 import TableControls from '../components/TableControls';
 import ConfirmModal from '../components/ConfirmModal';
-import Declaration from '../components/Declaration';
+import Notification from '../components/Notification'; // ⭐ Replaced Declaration with Notification
 
 export default function AdminStaffCRUD({ user, socket }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Modal & Feedback States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const [notification, setNotification] = useState(null); // ⭐ Switched to Notification state
 
-  // Search & Pagination States
+  // ⭐ BUG FIX: Intercept success messages passed from the Form page
+  useEffect(() => {
+    if (location.state?.feedback) {
+      setNotification(location.state.feedback);
+      // Clear the state so it doesn't reappear on page refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  const roleName = useMemo(() =>
-    typeof user?.role === 'object' ? user.role?.name : user?.role,
-    [user]);
-
+  const roleName = useMemo(() => typeof user?.role === 'object' ? user.role?.name : user?.role, [user]);
   const perms = useMemo(() => user?.permissions || [], [user]);
-
-  const isAdmin = useMemo(() =>
-    roleName === 'admin' || perms.includes('*'),
-    [roleName, perms]);
-
-  const can = useCallback((perm) =>
-    isAdmin || perms.includes(perm),
-    [isAdmin, perms]);
+  const isAdmin = useMemo(() => roleName === 'admin' || perms.includes('*'), [roleName, perms]);
+  const can = useCallback((perm) => isAdmin || perms.includes(perm), [isAdmin, perms]);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -43,7 +42,7 @@ export default function AdminStaffCRUD({ user, socket }) {
       const { data } = await API.get('/users');
       setUsers(data);
     } catch (err) {
-      setFeedback({ type: 'error', message: 'Failed to fetch users.' });
+      setNotification({ type: 'error', message: 'Failed to fetch users.' });
     } finally {
       setLoading(false);
     }
@@ -67,10 +66,13 @@ export default function AdminStaffCRUD({ user, socket }) {
     try {
       await API.delete(`/users/${userToDelete}`);
       setUsers(prev => prev.filter(u => u._id !== userToDelete));
-      setFeedback({ type: 'success', message: 'Staff member removed successfully.' });
-      setTimeout(() => setFeedback({ type: '', message: '' }), 3000);
+      setIsModalOpen(false);
+      
+      // ⭐ BUG FIX: Use floating Notification so it is seen regardless of scroll position
+      setNotification({ type: 'success', message: 'Delete Successful! Staff member removed.' });
     } catch (err) {
-      setFeedback({ type: 'error', message: 'Failed to delete user. Please try again.' });
+      setIsModalOpen(false);
+      setNotification({ type: 'error', message: 'Failed to delete user. Please try again.' });
     }
   };
 
@@ -89,33 +91,35 @@ export default function AdminStaffCRUD({ user, socket }) {
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center p-20 min-h-[400px]">
-      <Loader className="animate-spin text-blue-600 mb-4" size={40} />
+      <Loader className="animate-spin text-primary-600 dark:text-primary-400 mb-4" size={40} />
       <p className="text-gray-500 font-medium">Loading staff directory...</p>
     </div>
   );
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <Declaration
-        type={feedback.type}
-        message={feedback.message}
-        onClose={() => setFeedback({ type: '', message: '' })}
-      />
+    <div className="p-8 max-w-6xl mx-auto transition-colors">
+      
+      {/* ⭐ Replaced fixed Declaration with floating Notification */}
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
 
-      {/* Header Row: Title & Create Button */}
       <div className="flex justify-between items-start md:items-center mb-6 gap-4">
         <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
-            <Users className="text-blue-600" /> Staff Management
+          <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800 dark:text-white">
+            <Users className="text-primary-600 dark:text-primary-400" /> Staff Management
           </h2>
-          <p className="text-gray-500 text-sm">Manage user accounts, roles, and system access.</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">Manage user accounts, roles, and system access.</p>
         </div>
         {can('staff_create') && (
           <CreateButton onClick={() => navigate('/admin/staff/create')} label="New Staff" />
         )}
       </div>
 
-      {/* Filter Row: Search Bar Underneath */}
       <div className="mb-8 w-full md:max-w-md">
         <SearchBar
           value={searchTerm}
@@ -124,30 +128,29 @@ export default function AdminStaffCRUD({ user, socket }) {
         />
       </div>
 
-      {/* Data Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors">
         <table className="w-full text-left">
-          <thead className="bg-gray-50/50 border-b border-gray-100">
-            <tr className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+          <thead className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+            <tr className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
               <th className="px-6 py-5 text-left">User Details</th>
               <th className="px-6 py-5 text-left">Role</th>
               <th className="px-6 py-5 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
             {currentTableData.length > 0 ? currentTableData.map((staffMember) => (
-              <tr key={staffMember._id} className="hover:bg-gray-50/50 transition-colors group">
+              <tr key={staffMember._id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors group">
                 <td className="px-6 py-4">
                   <div className="flex flex-col">
-                    <span className="font-bold text-gray-800">{staffMember.name}</span>
-                    <span className="text-sm text-gray-500">{staffMember.email}</span>
+                    <span className="font-bold text-gray-800 dark:text-gray-200">{staffMember.name}</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{staffMember.email}</span>
                   </div>
                 </td>
                 <td className="px-6 py-4">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border 
                     ${(staffMember.role?.name || staffMember.role) === 'admin'
-                      ? 'bg-purple-50 text-purple-700 border-purple-100'
-                      : 'bg-blue-50 text-blue-700 border-blue-100'}`}>
+                      ? 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800'
+                      : 'bg-primary-50 text-primary-700 border-primary-100 dark:bg-primary-900/30 dark:text-primary-300 dark:border-primary-800'}`}>
                     {staffMember.role?.name || staffMember.role || "No Role"}
                   </span>
                 </td>
@@ -156,6 +159,7 @@ export default function AdminStaffCRUD({ user, socket }) {
                     {can('staff_update') && (
                       <EditButton onClick={() => navigate(`/admin/staff/edit/${staffMember._id}`)} />
                     )}
+                    {/* ⭐ Admin role protection prevents showing delete button for Admins entirely */}
                     {can('staff_delete') && (staffMember.role?.name || staffMember.role) !== 'admin' && (
                       <DeleteButton onClick={() => openDeleteModal(staffMember._id)} />
                     )}
@@ -164,7 +168,7 @@ export default function AdminStaffCRUD({ user, socket }) {
               </tr>
             )) : (
               <tr>
-                <td colSpan="3" className="px-6 py-20 text-center text-gray-400 italic">
+                <td colSpan="3" className="px-6 py-20 text-center text-gray-400 dark:text-gray-500 italic">
                   No staff members found matching your search.
                 </td>
               </tr>

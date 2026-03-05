@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Loader, CheckCircle } from 'lucide-react'; 
-import { useNavigate } from 'react-router-dom';
+import { Loader, CheckCircle, AlertTriangle } from 'lucide-react'; 
+import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../api';
 
 // Components
@@ -16,10 +16,17 @@ import { useTasks } from '../hooks/useTasks';
 
 export default function TaskPage({ user, socket, activeProjectId }) {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // ⭐ DYNAMIC CONFIGURATION: Detect Task vs Issue mode from URL
+  const isIssueMode = location.pathname.includes('/issues');
+  const typeLabel = isIssueMode ? 'Issue' : 'Task';
+  const basePath = isIssueMode ? '/issues' : '/tasks';
+  const HeaderIcon = isIssueMode ? AlertTriangle : CheckCircle;
 
   // Search, Filter & Pagination States
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterMode, setFilterMode] = useState("all_tasks"); // Default to showing all project tasks
+  const [filterMode, setFilterMode] = useState("all_tasks"); 
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -34,11 +41,11 @@ export default function TaskPage({ user, socket, activeProjectId }) {
   const isAdmin = useMemo(() => roleName === 'admin' || roleName === 'superadmin' || perms.includes('*'), [roleName, perms]);
   const can = useCallback((perm) => isAdmin || perms.includes(perm), [isAdmin, perms]);
 
-  // ⭐ Custom Hook fetching project-specific tasks and team
+  // ⭐ CUSTOM HOOK: Passes 'typeLabel' (Task or Issue) to the backend query
   const { 
     tasks, setTasks, staffList, statusList, 
     pageLoading, handleInlineUpdate 
-  } = useTasks(user, socket, isAdmin, can, setFeedback, activeProjectId);
+  } = useTasks(user, socket, isAdmin, can, setFeedback, activeProjectId, typeLabel);
 
   // Modal Handling
   const openDeleteModal = (id) => {
@@ -50,7 +57,7 @@ export default function TaskPage({ user, socket, activeProjectId }) {
     try {
       await API.delete(`/tasks/${taskToDelete}`);
       setTasks(prev => prev.filter(t => t._id !== taskToDelete));
-      setFeedback({ type: 'success', message: "Task deleted successfully" });
+      setFeedback({ type: 'success', message: `${typeLabel} deleted successfully` });
       setTimeout(() => setFeedback({ type: '', message: '' }), 3000);
     } catch (err) {
       setFeedback({ type: 'error', message: "Delete failed" });
@@ -58,25 +65,21 @@ export default function TaskPage({ user, socket, activeProjectId }) {
     setIsModalOpen(false);
   };
 
-  // ⭐ Enhanced Filter Logic
+  // Filter Logic (Search + Dropdown)
   const filteredTasks = useMemo(() => {
     return (tasks || []).filter(task => {
-      // 1. Check Search Term
       const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
       
-      // 2. Check Dropdown Filter
       let matchesUserFilter = true;
-      
       if (filterMode === "my_tasks") {
         const isAssigned = (task.assignedTo?._id || task.assignedTo) === user._id;
         const isMentioned = task.mentionedUsers?.some(mention => (mention?._id || mention) === user._id);
         matchesUserFilter = isAssigned || isMentioned;
       } 
       else if (filterMode === "unassigned") {
-        matchesUserFilter = !task.assignedTo; // No assignee
+        matchesUserFilter = !task.assignedTo; 
       } 
       else if (filterMode !== "all_tasks") {
-        // Specific team member selected from the dropdown
         matchesUserFilter = (task.assignedTo?._id || task.assignedTo) === filterMode;
       }
 
@@ -91,15 +94,15 @@ export default function TaskPage({ user, socket, activeProjectId }) {
     return filteredTasks.slice(firstIndex, lastIndex);
   }, [filteredTasks, currentPage, itemsPerPage]);
 
-  // Safety returns
+  // Safety return
   if (!user) return null;
 
-  // Guard against missing project selection
+  // Guard: Requirement for project selection
   if (!activeProjectId) {
     return (
       <div className="p-20 max-w-4xl mx-auto text-center mt-10 bg-white rounded-2xl shadow-sm border border-gray-100">
         <h2 className="text-2xl font-bold text-gray-800 mb-2">No Project Selected</h2>
-        <p className="text-gray-500">Please select a project from the top navigation bar to view its tasks.</p>
+        <p className="text-gray-500">Please select a project from the top navigation bar to view its {typeLabel.toLowerCase()}s.</p>
       </div>
     );
   }
@@ -110,20 +113,26 @@ export default function TaskPage({ user, socket, activeProjectId }) {
     <div className="p-8 max-w-7xl mx-auto min-h-screen">
       <Declaration type={feedback.type} message={feedback.message} onClose={() => setFeedback({ type: '', message: '' })} />
 
-      {/* Header Row */}
+      {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800">
-            <CheckCircle className="text-blue-600" /> Task Board
+            <HeaderIcon className={isIssueMode ? "text-red-500" : "text-blue-600"} /> 
+            {typeLabel} Board
           </h2>
-          <p className="text-gray-500 text-sm mt-1">Monitor project progress and assign team members</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {isIssueMode ? 'Track and resolve project blockers' : 'Monitor project progress and team tasks'}
+          </p>
         </div>
         {can('tasks_create') && (
-          <CreateButton onClick={() => navigate("/tasks/create")} label="Add Task" />
+          <CreateButton 
+            onClick={() => navigate(`${basePath}/create`)} 
+            label={isIssueMode ? "Report Issue" : "Add Task"} 
+          />
         )}
       </div>
 
-      {/* Abstracted Filter Component (Now includes staffList) */}
+      {/* Filter Component */}
       <TaskFilterBar 
         searchTerm={searchTerm} 
         setSearchTerm={setSearchTerm} 
@@ -131,9 +140,10 @@ export default function TaskPage({ user, socket, activeProjectId }) {
         setFilterMode={setFilterMode} 
         setCurrentPage={setCurrentPage} 
         staffList={staffList} 
+        typeLabel={typeLabel}
       />
 
-      {/* Abstracted Table Component */}
+      {/* Main Table Content */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <TaskTable 
           currentTableData={currentTableData}
@@ -145,6 +155,7 @@ export default function TaskPage({ user, socket, activeProjectId }) {
           handleInlineUpdate={handleInlineUpdate}
           openDeleteModal={openDeleteModal}
           navigate={navigate}
+          basePath={basePath} 
         />
 
         <TableControls
@@ -163,8 +174,8 @@ export default function TaskPage({ user, socket, activeProjectId }) {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onConfirm={handleDelete}
-        title="Delete Task"
-        message="Are you sure you want to delete this task? This action cannot be undone."
+        title={`Delete ${typeLabel}`}
+        message={`Are you sure you want to delete this ${typeLabel.toLowerCase()}? This action cannot be undone.`}
       />
     </div>
   );

@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Loader, ArrowLeft, Search, X } from 'lucide-react';
 import API from '../api';
-import { toast } from 'react-toastify';
 import FormActionButtons from '../components/FormActionButtons';
+import Notification from '../components/Notification'; // ⭐ Imported custom Notification
 
 export default function ProjectFormPage() {
   const { id } = useParams();
@@ -15,8 +15,11 @@ export default function ProjectFormPage() {
   const [staffList, setStaffList] = useState([]);
   
   const [formData, setFormData] = useState({ title: '', description: '', assignedUsers: [] });
+  const [errors, setErrors] = useState({});
   
-  // New states for the multi-select search bar
+  // ⭐ Notification state
+  const [notification, setNotification] = useState(null);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -37,14 +40,13 @@ export default function ProjectFormPage() {
           });
         }
       } catch (err) {
-        toast.error("Failed to load data");
+        setNotification({ type: 'error', message: "Failed to load underlying data." });
       } finally { 
         setPageLoading(false); 
       }
     };
     initData();
 
-    // Close dropdown when clicking outside
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
@@ -54,7 +56,6 @@ export default function ProjectFormPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [id, isEditMode]);
 
-  // Handle adding a user from the dropdown
   const handleAddUser = (userId) => {
     if (!formData.assignedUsers.includes(userId)) {
       setFormData(prev => ({
@@ -63,10 +64,9 @@ export default function ProjectFormPage() {
       }));
     }
     setSearchQuery('');
-    inputRef.current?.focus(); // Keep focus on input for rapid selection
+    inputRef.current?.focus(); 
   };
 
-  // Handle removing a user via the bubble's "X"
   const handleRemoveUser = (userId) => {
     setFormData(prev => ({
       ...prev,
@@ -74,96 +74,156 @@ export default function ProjectFormPage() {
     }));
   };
 
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.title.trim()) {
+      newErrors.title = "Project title is required.";
+    } else if (formData.title.length > 50) {
+      newErrors.title = "Project title cannot exceed 50 characters.";
+    } else if (!/^[A-Za-z\s-]+$/.test(formData.title)) {
+      newErrors.title = "Title can only contain letters, spaces, and hyphens. Numbers and special characters are not allowed.";
+    }
+
+    if (formData.description) {
+      const sqlPattern = /(--|;|UNION\s+SELECT|DROP\s+TABLE|INSERT\s+INTO|DELETE\s+FROM|UPDATE\s+[A-Za-z]+\s+SET|EXEC(\s|\())/i;
+      if (sqlPattern.test(formData.description)) {
+        newErrors.description = "Invalid input: SQL commands and restricted characters ( ; -- ) are not allowed.";
+      } else if (formData.description.length > 500) {
+        newErrors.description = "Project description cannot exceed 500 characters.";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title) return toast.error("Project Title is required");
+    if (!validateForm()) return;
 
     setLoading(true);
     try {
       if (isEditMode) {
         await API.put(`/projects/${id}`, formData);
-        toast.success("Project updated successfully!");
+        setNotification({ type: 'success', message: "Project updated successfully!" });
       } else {
         await API.post('/projects', formData);
-        toast.success("Project created and teams notified!");
+        setNotification({ type: 'success', message: "Project created successfully!" });
       }
-      navigate('/projects');
+      
+      // ⭐ Wait 1.5 seconds so the user can read the notification before navigating away
+      setTimeout(() => {
+        navigate('/projects');
+      }, 1500);
+
     } catch (err) {
-      toast.error(isEditMode ? "Failed to update project" : "Failed to create project");
-    } finally { 
-      setLoading(false); 
+      setNotification({ type: 'error', message: err.response?.data?.message || "Failed to save project." });
+      // window.scrollTo({ top: 0, behavior: 'smooth' });
+      setLoading(false); // Only set loading false if it fails, otherwise let it ride out the timeout
     }
   };
 
-  // Filter staff to exclude already selected users and match the search query
   const availableStaff = staffList.filter(staff => 
     !formData.assignedUsers.includes(staff._id) &&
     staff.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (pageLoading) return <div className="flex justify-center p-20"><Loader className="animate-spin text-blue-600" size={40}/></div>;
+  if (pageLoading) return <div className="flex justify-center p-20"><Loader className="animate-spin text-primary-600 dark:text-primary-400" size={40}/></div>;
 
   return (
-    <div className="p-8 max-w-3xl mx-auto min-h-screen bg-gray-50">
+    <div className="max-w-3xl mx-auto pb-12 transition-colors relative">
+      
+      {/* ⭐ Strict check: Only render if notification is not null */}
+      {notification && (
+        <Notification 
+          type={notification.type} 
+          message={notification.message} 
+          onClose={() => setNotification(null)} 
+        />
+      )}
+
       <div className="flex items-center gap-4 mb-8">
-        <button type="button" onClick={() => navigate('/projects')} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+        <button type="button" onClick={() => navigate('/projects')} data-btn-id="7" className="p-2 hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full transition-colors">
           <ArrowLeft size={20} />
         </button>
-        <h2 className="text-2xl font-bold text-gray-800">{isEditMode ? "Edit Project" : "Create New Project"}</h2>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white">{isEditMode ? "Edit Project" : "Create New Project"}</h2>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100 space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 space-y-6 transition-colors">
+        
+        {errors.form && (
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-xl font-medium text-sm">
+            {errors.form}
+          </div>
+        )}
+
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Project Title</label>
+          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
+            Project Title <span className="text-red-500">*</span>
+          </label>
           <input 
             type="text" 
-            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+            className={`w-full p-3 border rounded-xl outline-none transition-all bg-white dark:bg-gray-800 text-gray-900 dark:text-white ${
+              errors.title 
+                ? 'border-red-500 focus:ring-2 focus:ring-red-500/20' 
+                : 'border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:focus:border-primary-400'
+            }`} 
             value={formData.title} 
-            onChange={(e) => setFormData({ ...formData, title: e.target.value })} 
-            required 
+            onChange={(e) => {
+              setFormData({ ...formData, title: e.target.value });
+              if (errors.title) setErrors({ ...errors, title: null });
+            }} 
           />
+          {errors.title && <p className="text-red-500 text-xs font-bold mt-1.5">{errors.title}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Project Description</label>
+          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">Project Description</label>
           <textarea 
-            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all min-h-[120px]" 
+            className={`w-full p-3 border rounded-xl outline-none transition-all min-h-[120px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white ${
+              errors.description 
+                ? 'border-red-500 focus:ring-2 focus:ring-red-500/20' 
+                : 'border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 dark:focus:border-primary-400'
+            }`} 
             value={formData.description} 
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })} 
+            onChange={(e) => {
+              setFormData({ ...formData, description: e.target.value });
+              if (errors.description) setErrors({ ...errors, description: null });
+            }} 
           />
+          {errors.description && <p className="text-red-500 text-xs font-bold mt-1.5">{errors.description}</p>}
         </div>
 
         <div className="relative" ref={dropdownRef}>
-          <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Assign Team Members</label>
+          <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">Assign Team Members</label>
           
-          {/* Multi-Select Search Container */}
-          <div className="w-full p-2 border border-gray-300 rounded-xl bg-white flex flex-wrap gap-2 items-center focus-within:ring-2 focus-within:ring-blue-500 transition-all min-h-[52px]">
+          <div className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 flex flex-wrap gap-2 items-center focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500 dark:focus-within:border-primary-400 transition-all min-h-[52px]">
             
-            {/* Selected User Bubbles */}
             {formData.assignedUsers.map(userId => {
               const user = staffList.find(s => s._id === userId);
-              if (!user) return null; // Safety check while loading
+              if (!user) return null;
               return (
-                <span key={userId} className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 text-blue-800 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm">
+                <span key={userId} className="flex items-center gap-1.5 bg-primary-50 dark:bg-primary-900/30 border border-primary-200 dark:border-primary-800 text-primary-800 dark:text-primary-300 px-3 py-1.5 rounded-lg text-sm font-bold shadow-sm">
                   {user.name}
                   <button 
                     type="button" 
                     onClick={() => handleRemoveUser(userId)}
-                    className="hover:bg-blue-200 p-0.5 rounded-full transition-colors"
+                    data-btn-id="1"
+                    className="hover:bg-primary-200 dark:hover:bg-primary-800/50 p-0.5 rounded-full transition-colors"
                   >
-                    <X size={14} className="text-blue-600" />
+                    <X size={14} className="text-primary-600 dark:text-primary-400" />
                   </button>
                 </span>
               );
             })}
 
-            {/* Search Input inside the box */}
             <div className="flex-1 min-w-[150px] flex items-center gap-2 px-2">
               <Search size={16} className="text-gray-400" />
               <input
                 ref={inputRef}
                 type="text"
-                className="w-full outline-none bg-transparent text-sm p-1"
+                className="w-full outline-none bg-transparent text-sm p-1 text-gray-900 dark:text-white placeholder:text-gray-400"
                 placeholder={formData.assignedUsers.length === 0 ? "Search and select members..." : "Add more members..."}
                 value={searchQuery}
                 onChange={(e) => {
@@ -175,27 +235,26 @@ export default function ProjectFormPage() {
             </div>
           </div>
 
-          {/* Search Results Dropdown */}
           {isDropdownOpen && (
-            <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+            <div className="absolute z-10 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
               {availableStaff.length > 0 ? (
                 availableStaff.map((staff) => (
                   <div 
                     key={staff._id} 
                     onClick={() => handleAddUser(staff._id)}
-                    className="flex items-center gap-3 p-3 hover:bg-blue-50 cursor-pointer border-b last:border-none border-gray-100 transition-colors"
+                    className="flex items-center gap-3 p-3 hover:bg-primary-50 dark:hover:bg-gray-700/50 cursor-pointer border-b last:border-none border-gray-100 dark:border-gray-700 transition-colors"
                   >
-                    <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">
+                    <div className="w-8 h-8 bg-primary-600 dark:bg-primary-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
                       {staff.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-gray-800">{staff.name}</p>
-                      <p className="text-[10px] text-gray-500 uppercase tracking-widest">{staff.role?.name || 'Staff'}</p>
+                      <p className="text-sm font-bold text-gray-800 dark:text-gray-200">{staff.name}</p>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest">{staff.role?.name || 'Staff'}</p>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="p-4 text-center text-sm text-gray-500 italic">
+                <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400 italic">
                   {searchQuery ? "No matching staff found" : "All staff members selected"}
                 </div>
               )}

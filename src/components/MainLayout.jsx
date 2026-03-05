@@ -2,16 +2,14 @@ import React, { useCallback } from 'react';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 
-// ⭐ 1. Add activeProjectId and setActiveProjectId to the props
-export default function MainLayout({ 
-  children, 
-  user, 
-  handleLogout, 
-  activeProjectId, 
-  setActiveProjectId 
+export default function MainLayout({
+  children,
+  user,
+  handleLogout,
+  activeProjectId,
+  setActiveProjectId
 }) {
 
-  // Centralized permission checker
   const can = useCallback((permission) => {
     if (!user) return false;
 
@@ -25,20 +23,19 @@ export default function MainLayout({
   }, [user]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* ⭐ 2. Pass the props down to the Navbar */}
-      <Navbar 
-        user={user} 
-        handleLogout={handleLogout} 
-        activeProjectId={activeProjectId} 
-        setActiveProjectId={setActiveProjectId} 
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+      <Navbar
+        user={user}
+        handleLogout={handleLogout}
+        activeProjectId={activeProjectId}
+        setActiveProjectId={setActiveProjectId}
       />
-
+      
       <div className="flex">
-        <Sidebar 
-          user={user} 
+        <Sidebar
+          user={user}
           handleLogout={handleLogout}
-          can={can} 
+          can={can}
         />
 
         <main className="flex-1 ml-64 pt-16 p-8 min-h-screen">
