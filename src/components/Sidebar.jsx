@@ -5,7 +5,7 @@ import {
   Users,
   ClipboardList,
   ShieldPlus,
-  Shield,
+  Folder,
   LogOut,
   Settings,
   ChevronUp,
@@ -25,7 +25,7 @@ export default function Sidebar({ user, handleLogout }) {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false); 
   
   const [isProjectsOpen, setIsProjectsOpen] = useState(() => {
-    const projectPaths = ["/projects", "/tasks", "/issues", "/team", "/admin/task-status"];
+    const projectPaths = ["/projects", "/tasks", "/issues", "/team", "/admin/task-status", "/documents"];
     return projectPaths.includes(location.pathname);
   });
 
@@ -54,7 +54,7 @@ export default function Sidebar({ user, handleLogout }) {
       isSubmenu: true, 
       allowed: can("projects_read") || can("tasks_read"), 
       children: [
-        { name: "Projects", path: "/projects", icon: <Briefcase size={20} />, allowed: can("projects_read") },
+        { name: "Projects", path: "/projects", icon: <Folder size={20} />, allowed: can("projects_read") },
         { name: "Tasks", path: "/tasks", icon: <ClipboardList size={20} />, allowed: can("tasks_read") },
         { name: "Issues", path: "/issues", icon: <AlertTriangle size={20} />, allowed: can("tasks_read") },
         { name: "Team", path: "/team", icon: <Users size={20} />, allowed: can("projects_read") },
@@ -77,7 +77,7 @@ export default function Sidebar({ user, handleLogout }) {
     {
       name: "Roles",
       path: "/admin/roles", 
-      icon: <Shield size={20} />,
+      icon: <Briefcase size={20} />,
       allowed: can("roles_read"),
     },
     {

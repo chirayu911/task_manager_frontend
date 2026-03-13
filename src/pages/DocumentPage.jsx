@@ -1,39 +1,47 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { FileText, Loader, Download, Lock, MailCheck, Eye, EyeOff } from 'lucide-react'; // ⭐ Imported Eye and EyeOff
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { FileText, Loader, Download, Lock, MailCheck, Eye, EyeOff, Plus, Upload, Trash2, Edit } from 'lucide-react';
 import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
 import TableControls from '../components/TableControls';
 import ConfirmModal from '../components/ConfirmModal';
-import Notification from '../components/Notification'; 
+import Notification from '../components/Notification';
+import AccessRequestModal from '../components/AccessRequestModal';
 
 export default function DocumentPage({ user, activeProjectId }) {
+  const { requestId: urlRequestId } = useParams();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const location = useLocation();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [accessModal, setAccessModal] = useState({ isOpen: false, data: null });
 
+  // 1. Path-based modal loader (Deep Linking)
   useEffect(() => {
-    if (location.state?.feedback) {
-      setNotification(location.state.feedback);
-      navigate(location.pathname, { replace: true, state: {} });
+    if (urlRequestId) {
+      const fetchRequestDetails = async () => {
+        try {
+          const { data } = await API.get(`/documents/requests/${urlRequestId}`);
+          setAccessModal({
+            isOpen: true,
+            data: { id: urlRequestId, userName: data.userName, message: data.message }
+          });
+        } catch (err) {
+          setNotification({ type: 'error', message: "Access link invalid or expired." });
+          navigate('/documents');
+        }
+      };
+      fetchRequestDetails();
+    } else {
+      setAccessModal({ isOpen: false, data: null });
     }
-  }, [location, navigate]);
+  }, [urlRequestId, navigate]);
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-
-  const roleName = useMemo(() => typeof user?.role === 'object' ? user.role?.name : user?.role, [user]);
-  const perms = useMemo(() => user?.permissions || [], [user]);
-  const isAdmin = useMemo(() => roleName === 'admin' || perms.includes('*'), [roleName, perms]);
-  const can = useCallback((perm) => isAdmin || perms.includes(perm), [isAdmin, perms]);
-
+  // 2. Data Fetching
   const fetchDocuments = useCallback(async () => {
     if (!activeProjectId) return;
     try {
@@ -51,23 +59,44 @@ export default function DocumentPage({ user, activeProjectId }) {
     if (user && activeProjectId) fetchDocuments();
   }, [user, activeProjectId, fetchDocuments]);
 
-  // ⭐ Request Access Function with Payload
-  const handleRequestAccess = async (docId) => {
+  // 3. Handlers
+  const handleGrantAccess = async (requestId) => {
     try {
-      await API.post(`/documents/${docId}/request-access`, {
-        userId: user._id,
-        userName: user.name
-      });
-      setNotification({ type: 'success', message: "Access request sent to the creator!" });
-      fetchDocuments(); // Refresh to update button state
+      await API.post(`/documents/grant-access/${requestId}`);
+      setNotification({ type: 'success', message: "Access granted successfully!" });
+      setAccessModal({ isOpen: false, data: null });
+      navigate('/documents');
+      fetchDocuments();
     } catch (err) {
-      setNotification({ type: 'error', message: err.response?.data?.message || "Failed to request access." });
+      setNotification({ type: 'error', message: "Failed to grant access." });
     }
   };
 
-  const openDeleteModal = (id) => {
-    setDocToDelete(id);
-    setIsModalOpen(true);
+  const handleDeclineAccess = async (requestId) => {
+    try {
+      await API.delete(`/documents/requests/${requestId}`);
+      setNotification({ type: 'success', message: "Request discarded successfully." });
+      setAccessModal({ isOpen: false, data: null });
+      navigate('/documents');
+      fetchDocuments();
+    } catch (err) {
+      setNotification({ type: 'error', message: "Failed to decline request." });
+    }
+  };
+
+  const closeAccessModal = () => {
+    setAccessModal({ isOpen: false, data: null });
+    navigate('/documents');
+  };
+
+  const handleRequestAccess = async (docId) => {
+    try {
+      await API.post(`/documents/${docId}/request-access`, { userId: user._id, userName: user.name });
+      setNotification({ type: 'success', message: "Access request sent!" });
+      fetchDocuments();
+    } catch (err) {
+      setNotification({ type: 'error', message: "Failed to request access." });
+    }
   };
 
   const handleDelete = async () => {
@@ -75,16 +104,20 @@ export default function DocumentPage({ user, activeProjectId }) {
       await API.delete(`/documents/${docToDelete}`);
       setDocuments(prev => prev.filter(d => d._id !== docToDelete));
       setIsModalOpen(false);
-      setNotification({ type: 'success', message: "Delete Successful! Document removed." });
+      setNotification({ type: 'success', message: "Document removed." });
     } catch (err) {
       setIsModalOpen(false);
-      setNotification({ type: 'error', message: err.response?.data?.message || "Error deleting document." });
+      setNotification({ type: 'error', message: "Error deleting." });
     }
   };
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   const filteredDocs = useMemo(() => {
-    return documents.filter(d => 
-      d.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    return documents.filter(d =>
+      d.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       d.description?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [documents, searchTerm]);
@@ -95,122 +128,155 @@ export default function DocumentPage({ user, activeProjectId }) {
     return filteredDocs.slice(firstIndex, lastIndex);
   }, [filteredDocs, currentPage, itemsPerPage]);
 
-  if (!user || !activeProjectId) return null;
+  const roleName = useMemo(() => typeof user?.role === 'object' ? user.role?.name : user?.role, [user]);
+  const perms = user?.permissions || [];
+  const isAdmin = roleName === 'admin' || perms.includes('*');
+  const can = (perm) => isAdmin || perms.includes(perm);
 
-  if (loading) return <div className="flex justify-center p-20"><Loader className="animate-spin text-primary-600 dark:text-primary-400" size={40} /></div>;
+  if (!user) return null;
 
   return (
     <div className="p-8 max-w-6xl mx-auto min-h-screen transition-colors">
       {notification && <Notification type={notification.type} message={notification.message} onClose={() => setNotification(null)} />}
 
-      <div className="flex justify-between items-start md:items-center mb-6 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800 dark:text-white">
-            <FileText className="text-primary-600 dark:text-primary-400" /> Project Documents
+            <FileText className="text-primary-600" /> Project Documents
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Upload and manage project-related files and resources.</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage project files and rich-text resources.</p>
         </div>
-        {can('documents_create') && <CreateButton onClick={() => navigate("/documents/create")} label="Upload Document" />}
+
+        <div className="flex gap-4">
+          {can('documents_create') && (
+            /* ⭐ Emerald Green "Bulk Upload" Buttoncite: filename=image_0.pngcite: 1.1cite: 1.3cite: 1.2 */
+            <button
+              onClick={() => navigate("/documents/create/text")} // Or whatever bulk route
+              className="flex items-center gap-2.5 px-6 py-3.5 bg-green-600 text-white rounded-2xl font-black text-sm hover:bg-green-700 transition-all shadow-md shadow-green-200 dark:shadow-none animate-in fade-in zoom-in-95 duration-200 active:scale-95"
+            >
+              <Plus size={18} /> Create document
+            </button>
+          )}
+
+          {can('documents_create') && (
+            /* ⭐ Royal Blue "Add Task" Buttoncite: filename=image_0.pngcite: 1.1cite: 1.3cite: 1.2 */
+            <button
+              onClick={() => navigate("/documents/create")}
+              className="flex items-center gap-2.5 px-6 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none animate-in fade-in zoom-in-95 duration-200 active:scale-95"
+            >
+              <Upload  size={18} /> upload document
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="mb-8 w-full md:max-w-md">
-        <SearchBar value={searchTerm} onChange={(val) => { setSearchTerm(val); setCurrentPage(1); }} placeholder="Search documents..." />
+      <div className="mb-6 max-w-md">
+        <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Search documents..." />
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-colors">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
-            <tr className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-              <th className="px-6 py-5">Document Details</th>
-              <th className="px-6 py-5">Access</th>
-              <th className="px-6 py-5 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
-            {currentTableData.length > 0 ? currentTableData.map((doc) => {
-              // ⭐ Verify Access Logic
-              const hasAccess = 
-                isAdmin || 
-                doc.accessType === 'public' || 
-                doc.uploadedBy?._id === user._id || 
-                doc.allowedUsers?.some(u => u._id === user._id);
-                
-              const hasRequested = doc.accessRequests?.includes(user._id);
+      {!activeProjectId && !accessModal.isOpen ? (
+        <div className="bg-white dark:bg-gray-800 p-20 text-center rounded-2xl border border-dashed border-gray-300">
+          <p className="text-gray-400 italic">Please select a project to view specific documents.</p>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all">
+          {loading && activeProjectId ? (
+            <div className="flex justify-center p-20"><Loader className="animate-spin text-primary-600" size={40} /></div>
+          ) : (
+            <table className="w-full text-left">
+              <thead className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+                <tr className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                  <th className="px-6 py-5">Document Details</th>
+                  <th className="px-6 py-5">Access</th>
+                  <th className="px-6 py-5">View Content</th> {/* ⭐ New Column */}
+                  <th className="px-6 py-5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                {currentTableData.map((doc) => {
+                  const hasAccess = isAdmin || doc.accessType === 'public' || doc.uploadedBy?._id === user._id || doc.allowedUsers?.some(u => (u.userId?._id === user._id || u.userId === user._id));
+                  const hasRequested = doc.accessRequests?.some(req => (req.userId === user._id || req._id === user._id));
 
-              return (
-              <tr key={doc._id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors group">
-                <td className="px-6 py-4">
-                  <div className="font-bold text-gray-800 dark:text-gray-200">{doc.title}</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-1 max-w-sm">
-                    {doc.description || "No description provided."}
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                   <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border ${doc.accessType === 'public' ? 'bg-green-50 text-green-700 border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800' : 'bg-orange-50 text-orange-700 border-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800'}`}>
-                      {doc.accessType === 'public' ? 'Public' : <><Lock size={10}/> Restricted</>}
-                   </span>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-3 items-center">
-                    
-                    {/* ⭐ 1. View Details Button (Enabled/Disabled based on access) */}
-                    <button 
-                      onClick={() => hasAccess && navigate(`/documents/view/${doc._id}`)}
-                      disabled={!hasAccess}
-                      className={`p-2 transition-colors ${
-                        hasAccess 
-                          ? 'text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 cursor-pointer' 
-                          : 'text-gray-300 dark:text-gray-700 cursor-not-allowed opacity-50'
-                      }`}
-                      title={hasAccess ? "View Details" : "Access Restricted"}
-                    >
-                      {hasAccess ? <Eye size={18} /> : <EyeOff size={18} />}
-                    </button>
+                  return (
+                    <tr key={doc._id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-gray-800 dark:text-gray-200">{doc.title}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">{doc.description}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase border">
+                          {doc.accessType === 'public' ? 'Public' : <><Lock size={10} /> Restricted</>}
+                        </span>
+                      </td>
 
-                    {/* ⭐ 2. Download / Request Access Button */}
-                    {hasAccess ? (
-                      <a href={`http://localhost:5000/${doc.fileUrl?.replace(/\\/g, '/')}`} target="_blank" rel="noopener noreferrer" download className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors" title="Download Document">
-                        <Download size={18} />
-                      </a>
-                    ) : hasRequested ? (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-orange-500 uppercase">
-                        <MailCheck size={14}/> Request Pending
-                      </span>
-                    ) : (
-                      <button onClick={() => handleRequestAccess(doc._id)} className="flex items-center gap-1 px-3 py-1.5 bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 rounded-lg text-xs font-bold hover:bg-gray-800 transition-colors">
-                        <Lock size={12}/> Ask for Access
-                      </button>
-                    )}
+                      {/* ⭐ Instruction: View Content Field */}
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => {
+                            if (doc.type === 'text') {
+                              // Passes 'viewOnly' state to the editor page
+                              navigate(`/documents/edit/text/${doc._id}`, { state: { viewOnly: true } });
+                            } else {
+                              navigate(`/documents/view/${doc._id}`);
+                            }
+                          }}
+                          disabled={!hasAccess}
+                          className="flex items-center gap-2 text-xs font-bold text-primary-600 hover:text-primary-700 disabled:text-gray-300 transition-colors"
+                        >
+                          {hasAccess ? <><Eye size={16} /> Open Content</> : <><EyeOff size={16} /> Restricted</>}
+                        </button>
+                      </td>
 
-                    {/* ⭐ 3. Edit & Delete Buttons */}
-                    {can('documents_update') && hasAccess && <EditButton onClick={() => navigate(`/documents/edit/${doc._id}`)} />}
-                    {can('documents_delete') && hasAccess && <DeleteButton onClick={() => openDeleteModal(doc._id)} />}
-                  </div>
-                </td>
-              </tr>
-            )}) : (
-              <tr>
-                <td colSpan="3" className="px-6 py-20 text-center text-gray-400 dark:text-gray-500 italic">
-                  No documents found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-        
-        <TableControls 
-          currentPage={currentPage} 
-          totalItems={filteredDocs.length} 
-          itemsPerPage={itemsPerPage} 
-          onPageChange={setCurrentPage} 
-          onLimitChange={(newLimit) => {
-            setItemsPerPage(newLimit);
-            setCurrentPage(1);
-          }}
-        />
-      </div>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-3 items-center">
+                          {!hasAccess ? (
+                            hasRequested ? (
+                              <span className="text-[10px] font-bold text-orange-500 uppercase flex items-center gap-1"><MailCheck size={14} /> Pending</span>
+                            ) : (
+                              <button onClick={() => handleRequestAccess(doc._id)} className="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-primary-600 transition-all flex items-center gap-1"><Lock size={12} /> Access</button>
+                            )
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              {/* Standard Download logic remains intact */}
+                              {doc.type === 'file' && doc.fileUrl && (
+                                <a href={`http://localhost:5000/${doc.fileUrl.replace(/\\/g, '/')}`} target="_blank" rel="noopener noreferrer" download className="p-2 text-gray-400 hover:text-primary-600">
+                                  <Download size={18} />
+                                </a>
+                              )}
 
-      <ConfirmModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onConfirm={handleDelete} title="Delete Document" message="Permanently delete this document? The file will be removed from the server." />
+                              {can('documents_update') && (
+                                <EditButton onClick={() => {
+                                  const path = doc.type === 'text' ? `/documents/edit/text/${doc._id}` : `/documents/edit/${doc._id}`;
+                                  navigate(path);
+                                }} />
+                              )}
+
+                              {can('documents_delete') && (
+                                <DeleteButton onClick={() => { setDocToDelete(doc._id); setIsModalOpen(true); }} />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          <TableControls currentPage={currentPage} totalItems={filteredDocs.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onLimitChange={(newLimit) => { setItemsPerPage(newLimit); setCurrentPage(1); }} />
+        </div>
+      )}
+
+      <AccessRequestModal
+        isOpen={accessModal.isOpen}
+        onClose={closeAccessModal}
+        requestData={accessModal.data}
+        onAccept={handleGrantAccess}
+        onDecline={handleDeclineAccess}
+      />
+
+      <ConfirmModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onConfirm={handleDelete} title="Delete Document" message="Permanently delete this document?" />
     </div>
   );
 }

@@ -45,15 +45,7 @@ export default function Navbar({ user, activeProjectId, setActiveProjectId }) {
     <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 fixed top-0 left-64 w-[calc(100%-16rem)] z-[100] h-16 shadow-sm transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-end gap-4">
         
-        {/* ⭐ Theme Toggle Button */}
-        <button
-          onClick={toggleTheme}
-          data-btn-id="4"
-          className="p-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-          title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-        >
-          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
+       
 
         {/* Project Selector */}
         <div className="relative" ref={projectsRef}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import API from "./api";
 import { io } from "socket.io-client";
 
@@ -28,6 +28,7 @@ import SubscriptionPage from './pages/SubscriptionPage';
 import SubscriptionFormPage from './pages/SubscriptionFormPage';
 import DocumentPage from './pages/DocumentPage';
 import DocumentFormPage from './pages/DocumentFormPage';
+import CreateTextDocument from "./pages/CreateDocument";      
 
 // Components
 import MainLayout from "./components/MainLayout";
@@ -43,9 +44,10 @@ export default function App() {
   const [notification, setNotification] = useState(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || "http://localhost:5000/api";
 
-  // ⭐ Project Context State Logic
+  // Project Context State Logic
   const [activeProjectId, setActiveProjectId] = useState(() => {
     const stored = localStorage.getItem('activeProjectId');
     return (stored && stored !== 'null' && stored !== 'undefined') ? stored : null;
@@ -92,7 +94,6 @@ export default function App() {
 
     setSocket(newSocket);
 
-    // Sync permissions if changed remotely
     newSocket.on("permissionsUpdated", async () => {
       try {
         const { data } = await API.get("/auth/me");
@@ -111,8 +112,9 @@ export default function App() {
       await API.post('/auth/logout');
       setUser(null);
       setActiveProjectId(null);
+      localStorage.removeItem('profile'); // Ensure localStorage is cleared
       notify('info', 'Logged out successfully');
-      navigate('/');
+      navigate('/login'); // Redirect to explicit login path
     } catch (err) {
       console.error("Logout error", err);
     }
@@ -127,13 +129,18 @@ export default function App() {
   const perms = useMemo(() => user?.permissions || [], [user]);
   const isAdmin = useMemo(() => roleName === "admin" || perms.includes("*"), [roleName, perms]);
 
-  // 4. PROTECTED ROUTE COMPONENT (⭐ This injects activeProjectId into MainLayout automatically!)
+  // 4. PROTECTED ROUTE COMPONENT
   const ProtectedRoute = ({ children, requiredPermission }) => {
     if (loading) return null;
-    if (!user) return <Navigate to="/" />;
+
+    if (!user) {
+      // ⭐ ENHANCED: Capture pathname and search (query params)
+      const currentPath = encodeURIComponent(location.pathname + location.search);
+      return <Navigate to={`/login?redirect=${currentPath}`} replace />;
+    }
 
     if (requiredPermission && !isAdmin && !perms.includes(requiredPermission)) {
-      return <Navigate to={isAdmin ? "/admin" : "/staff"} />;
+      return <Navigate to={isAdmin ? "/admin" : "/staff"} replace />;
     }
 
     return (
@@ -170,10 +177,34 @@ export default function App() {
       )}
 
       <Routes>
-        {/* PUBLIC ROUTES */}
-        <Route path="/" element={!user ? <Login setUser={setUser} notify={notify} /> : <Navigate to={isAdmin ? "/admin" : "/staff"} />} />
-        <Route path="/forgot-password" element={!user ? <ForgotPasswordPage /> : <Navigate to={isAdmin ? "/admin" : "/staff"} />} />
-        <Route path="/reset-password/:token" element={!user ? <ResetPasswordPage /> : <Navigate to={isAdmin ? "/admin" : "/staff"} />} />
+        {/* ⭐ PUBLIC ROUTES: Handle Redirects for both logged-in and logged-out users */}
+        {["/", "/login"].map((path) => (
+          <Route
+            key={path}
+            path={path}
+            element={
+              !user ? (
+                <Login setUser={setUser} notify={notify} />
+              ) : (
+                (() => {
+                  const params = new URLSearchParams(location.search);
+                  const redirectTo = params.get('redirect');
+                  
+                  // If we are logged in but have a redirect (e.g. from email link), follow it
+                  if (redirectTo) {
+                    return <Navigate to={decodeURIComponent(redirectTo)} replace />;
+                  }
+                  
+                  // Default bounce to dashboard
+                  return <Navigate to={isAdmin ? "/admin" : "/staff"} replace />;
+                })()
+              )
+            }
+          />
+        ))}
+
+        <Route path="/forgot-password" element={!user ? <ForgotPasswordPage /> : <Navigate to="/" replace />} />
+        <Route path="/reset-password/:token" element={!user ? <ResetPasswordPage /> : <Navigate to="/" replace />} />
 
         {/* PROTECTED ROUTES */}
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
@@ -182,7 +213,7 @@ export default function App() {
         <Route path="/tasks" element={<ProtectedRoute requiredPermission="tasks_read"><TaskPage user={user} socket={socket} activeProjectId={activeProjectId} /></ProtectedRoute>} />
         <Route path="/team" element={<ProtectedRoute requiredPermission="projects_read"><TeamPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
 
-        <Route path="/issues" element={<ProtectedRoute requiredPermission="tasks_read"><IssuePage user={user} socket={socket} activeProjectId={activeProjectId} /></ProtectedRoute>} />
+        <Route path="/issues" element={<ProtectedRoute requiredPermission="tasks_read"><TaskPage user={user} socket={socket} activeProjectId={activeProjectId} /></ProtectedRoute>} />
         <Route path="/issues/create" element={<ProtectedRoute requiredPermission="tasks_create"><TaskFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
         <Route path="/issues/edit/:id" element={<ProtectedRoute requiredPermission="tasks_update"><TaskFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
         <Route path="/issues/view/:id" element={<ProtectedRoute requiredPermission="tasks_read"><TaskFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
@@ -209,38 +240,30 @@ export default function App() {
 
         <Route path="/projects" element={<ProtectedRoute requiredPermission="projects_read"><ProjectPage user={user} /></ProtectedRoute>} />
         <Route path="/projects/create" element={<ProtectedRoute requiredPermission="projects_create"><ProjectFormPage user={user} /></ProtectedRoute>} />
-        <Route path="/projects/edit/:id" element={<ProtectedRoute requiredPermission="projects_update"><ProjectFormPage user={user} /></ProtectedRoute>} />
+        <Route path="/projects/edit/:id" element={<ProtectedRoute requiredPermission="projects_update"><ProjectFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
 
-        {/* ⭐ FIX: Changed to ProtectedRoute so props pass perfectly */}
         <Route path="/admin/subscriptions" element={<ProtectedRoute><SubscriptionPage user={user} /></ProtectedRoute>} />
         <Route path="/admin/subscriptions/create" element={<ProtectedRoute><SubscriptionFormPage /></ProtectedRoute>} />
         <Route path="/admin/subscriptions/edit/:id" element={<ProtectedRoute><SubscriptionFormPage /></ProtectedRoute>} />
 
         <Route path="/documents" element={<ProtectedRoute requiredPermission="projects_read"><DocumentPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
         <Route path="/documents/create" element={<ProtectedRoute requiredPermission="documents_create"><DocumentFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
+        <Route path="/documents/create/text" element={<ProtectedRoute requiredPermission="documents_create"><CreateTextDocument user={user} activeProjectId={activeProjectId} notify={notify} /></ProtectedRoute>} />
         <Route path="/documents/edit/:id" element={<ProtectedRoute requiredPermission="documents_update"><DocumentFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
+        <Route path="/documents/edit/text/:id" element={<ProtectedRoute requiredPermission="documents_update"><CreateTextDocument user={user} activeProjectId={activeProjectId} notify={notify} /></ProtectedRoute>} />
         <Route path="/documents/view/:id" element={<ProtectedRoute requiredPermission="projects_read"><DocumentFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
-
+        
         <Route
-          path="/documents/view/:id"
+          path="/documents/requests/:requestId"
           element={
-            <ProtectedRoute user={user}>
-              <DocumentFormPage user={user} activeProjectId={activeProjectId} />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/documents/edit/:id"
-          element={
-            <ProtectedRoute user={user}>
-              <DocumentFormPage user={user} activeProjectId={activeProjectId} />
+            <ProtectedRoute requiredPermission="projects_read">
+              <DocumentPage user={user} activeProjectId={activeProjectId} />
             </ProtectedRoute>
           }
         />
 
         {/* Catch-all Redirect */}
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </ThemeProvider>
   );

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Lock, Mail, Loader, Eye, EyeOff } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom'; // ⭐ Added Link
+import React, { useState, useEffect } from 'react';
+import { Lock, Mail, Loader, Eye, EyeOff, ShieldCheck, Building } from 'lucide-react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import API from '../api';
 
 export default function LoginPage({ setUser, notify }) { 
@@ -12,12 +12,19 @@ export default function LoginPage({ setUser, notify }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false); // ⭐ New state for redirect UX
   
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // ⭐ Configuration Constants
+  // Configuration Constants
   const MAX_USERNAME = 30;
   const MAX_PASSWORD = 50;
+
+  // ⭐ EFFECT: Clean up notifications on mount
+  useEffect(() => {
+    setError('');
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -30,18 +37,32 @@ export default function LoginPage({ setUser, notify }) {
     setLoading(true);
 
     try {
-      const response = await API.post('/api/auth/login', { username, password });
+      const response = await API.post('/auth/login', { username, password });
       
-      // ⭐ Trigger Global Success Notification
+      // Update global user state
+      setUser(response.data);
+
       if (notify) {
         notify('success', `Welcome back, ${response.data.name || username}!`);
       }
 
-      // Update global user state
-      setUser(response.data);
-      
-      // Redirect to dashboard
-      navigate('/'); 
+      // ⭐ DEEP LINK REDIRECT LOGIC
+      const params = new URLSearchParams(location.search);
+      const redirectTo = params.get('redirect');
+
+      if (redirectTo) {
+        setIsRedirecting(true);
+        // We use a slight delay or immediate navigation
+        // decodeURIComponent handles the encoding from requestMail.js
+        const decodedPath = decodeURIComponent(redirectTo);
+        
+        // Timeout ensures the 'setUser' state propagates before navigation
+        setTimeout(() => {
+          navigate(decodedPath);
+        }, 500);
+      } else {
+        navigate('/'); 
+      }
       
     } catch (err) {
       setError(err.response?.data?.message || "Invalid username or password");
@@ -50,12 +71,24 @@ export default function LoginPage({ setUser, notify }) {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+    <div className="relative flex items-center justify-center min-h-screen bg-gray-100 p-4 transition-colors">
+      
+      {/* ⭐ Redirecting Overlay */}
+      {isRedirecting && (
+        <div className="absolute inset-0 z-[200] bg-white/80 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-500">
+          <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center border border-blue-50">
+            <Loader className="animate-spin text-blue-600 mb-4" size={40} />
+            <h2 className="text-xl font-black text-gray-800">Accessing Document...</h2>
+            <p className="text-gray-500 text-sm mt-2">Verifying permissions and redirecting.</p>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md border border-gray-100 transition-all">
         
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-2xl mb-4">
-             <Lock className="text-blue-600" size={32} />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-2xl mb-4 shadow-inner">
+             <ShieldCheck className="text-blue-600" size={32} />
           </div>
           <h1 className="text-3xl font-black text-gray-800 tracking-tight">Task Manager</h1>
           <p className="text-gray-400 mt-2 text-xs uppercase font-bold tracking-widest">Identify Yourself</p>
@@ -68,7 +101,6 @@ export default function LoginPage({ setUser, notify }) {
         )}
 
         <form onSubmit={handleLogin} className="space-y-5">
-          {/* Username Input */}
           <div className="space-y-1">
             <div className="flex justify-between items-center px-1">
               <label className="text-xs font-black text-gray-500 uppercase tracking-wider">Username</label>
@@ -90,7 +122,6 @@ export default function LoginPage({ setUser, notify }) {
             </div>
           </div>
 
-          {/* Password Input */}
           <div className="space-y-1">
             <div className="flex justify-between items-center px-1">
               <label className="text-xs font-black text-gray-500 uppercase tracking-wider">Password</label>
@@ -109,7 +140,6 @@ export default function LoginPage({ setUser, notify }) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
-              {/* Visibility Toggle */}
               <button 
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
@@ -119,7 +149,6 @@ export default function LoginPage({ setUser, notify }) {
               </button>
             </div>
             
-            {/* ⭐ Added Forgot Password Link */}
             <div className="flex justify-end pt-2">
               <Link 
                 to="/forgot-password" 
@@ -128,13 +157,11 @@ export default function LoginPage({ setUser, notify }) {
                 Forgot Password?
               </Link>
             </div>
-
           </div>
 
-          {/* Submit Button */}
           <button 
             type="submit" 
-            disabled={loading}
+            disabled={loading || isRedirecting}
             className="w-full bg-blue-600 text-white py-4 rounded-2xl hover:bg-blue-700 font-bold transition-all shadow-xl shadow-blue-200 flex justify-center items-center gap-2 disabled:opacity-50 active:scale-[0.98]"
           >
             {loading ? (
@@ -148,7 +175,29 @@ export default function LoginPage({ setUser, notify }) {
           </button>
         </form>
 
-        <div className="mt-8 text-center">
+        {/* ⭐ ADDED: Divider and Register Company Button */}
+        <div className="mt-8 mb-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-white text-gray-400 font-bold uppercase tracking-wider text-[10px]">Or</span>
+            </div>
+          </div>
+          
+          <div className="mt-6">
+            <Link 
+              to="/register" // Make sure this matches your routing setup
+              className="w-full bg-white text-gray-700 py-4 rounded-2xl hover:bg-gray-50 border border-gray-200 hover:border-gray-300 font-bold transition-all flex justify-center items-center gap-2 active:scale-[0.98]"
+            >
+              <Building size={18} className="text-gray-400" />
+              Register Company
+            </Link>
+          </div>
+        </div>
+
+        <div className="mt-6 text-center">
           <p className="text-gray-400 text-[10px] uppercase font-bold tracking-[0.2em]">
             Protected Environment
           </p>

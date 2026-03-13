@@ -279,7 +279,7 @@ export default function DocumentFormPage({ user, activeProjectId }) {
                 {isViewMode ? (
                   existingFile && (
                     <a
-                      href={`http://localhost:5000/${existingFile.url}`}
+                      href={`https://fm8bp5cj-5000.inc1.devtunnels.ms/${existingFile.url}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       download

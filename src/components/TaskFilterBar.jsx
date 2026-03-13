@@ -7,7 +7,8 @@ export default function TaskFilterBar({
   filterMode, 
   setFilterMode, 
   setCurrentPage,
-  staffList // ⭐ Added staffList prop
+  staffList, // ⭐ Added staffList prop
+  isIssueMode 
 }) {
   return (
     <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 w-full">
@@ -19,7 +20,7 @@ export default function TaskFilterBar({
             setSearchTerm(val);
             setCurrentPage(1);
           }}
-          placeholder="Search tasks by title..."
+          placeholder={isIssueMode ? "Search issues by title..." : "Search tasks by title..."}
         />
       </div>
 
@@ -32,9 +33,9 @@ export default function TaskFilterBar({
         }}
         className="w-full sm:w-56 h-[42px] border border-gray-200 rounded-xl px-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer shadow-sm"
       >
-        <option value="all_tasks">All Tasks</option>
-        <option value="my_tasks">My Tasks</option>
-        
+        <option value={isIssueMode ? "all_Issue" : "all_tasks"} label={isIssueMode ? "All Issues" : "All Tasks"} />
+        <option value={isIssueMode ? "my_Issue" : "my_tasks"} label={isIssueMode ? "My Issues" : "My Tasks"} />
+
         {/* ⭐ Dynamically map the project's team members */}
         {staffList && staffList.length > 0 && (
           <optgroup label="Filter by Assignee">

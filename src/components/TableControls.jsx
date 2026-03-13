@@ -12,9 +12,57 @@ export default function TableControls({
   if (totalItems === 0) return null;
 
   const handlePageClick = (page) => {
-    // Prevent page refresh by using state-only navigation
     onPageChange(page); 
   };
+
+  const renderPageNumbers = () => {
+    const pageNumbers = [];
+    const showMax = 3; // Window size around current page
+
+    // Always show Page 1
+    pageNumbers.push(renderButton(1));
+
+    // Calculate start and end of the middle window
+    let start = Math.max(2, currentPage - 1);
+    let end = Math.min(totalPages - 1, currentPage + 1);
+
+    // Add ellipsis after Page 1 if there's a gap
+    if (start > 2) {
+      pageNumbers.push(<span key="dots-start" className="px-1 text-gray-400">...</span>);
+    }
+
+    // Render the window (Previous, Current, Next)
+    for (let i = start; i <= end; i++) {
+      pageNumbers.push(renderButton(i));
+    }
+
+    // Add ellipsis before Last Page if there's a gap
+    if (end < totalPages - 1) {
+      pageNumbers.push(<span key="dots-end" className="px-1 text-gray-400">...</span>);
+    }
+
+    // Always show Last Page (if it's not Page 1)
+    if (totalPages > 1) {
+      pageNumbers.push(renderButton(totalPages));
+    }
+
+    return pageNumbers;
+  };
+
+  const renderButton = (num) => (
+    <button
+      key={num}
+      type="button"
+      onClick={() => handlePageClick(num)}
+      className={`w-8 h-8 rounded-lg text-sm font-bold transition-all ${
+        currentPage === num 
+          ? 'bg-blue-600 text-white shadow-md' 
+          : 'text-gray-500 hover:bg-gray-100'
+      }`}
+    >
+      {num}
+    </button>
+  );
 
   return (
     <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -22,9 +70,7 @@ export default function TableControls({
         <span>Show</span>
         <select 
           value={itemsPerPage}
-          onChange={(e) => {
-            onLimitChange(Number(e.target.value));
-          }}
+          onChange={(e) => onLimitChange(Number(e.target.value))}
           className="border border-gray-200 rounded-lg px-2 py-1 bg-white outline-none focus:ring-2 focus:ring-blue-500/20"
         >
           {[5, 10, 20, 50].map(num => <option key={num} value={num}>{num}</option>)}
@@ -34,7 +80,7 @@ export default function TableControls({
 
       <div className="flex items-center gap-2">
         <button
-          type="button" // ⭐ Critical: Prevents form submission refresh
+          type="button"
           onClick={() => handlePageClick(currentPage - 1)}
           disabled={currentPage === 1}
           className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
@@ -43,24 +89,11 @@ export default function TableControls({
         </button>
         
         <div className="flex items-center gap-1">
-          {[...Array(totalPages)].map((_, i) => (
-            <button
-              key={i + 1}
-              type="button" // ⭐ Critical: Prevents form submission refresh
-              onClick={() => handlePageClick(i + 1)}
-              className={`w-8 h-8 rounded-lg text-sm font-bold transition-all ${
-                currentPage === i + 1 
-                ? 'bg-blue-600 text-white shadow-md' 
-                : 'text-gray-500 hover:bg-white hover:text-gray-800'
-              }`}
-            >
-              {i + 1}
-            </button>
-          ))}
+          {renderPageNumbers()}
         </div>
 
         <button
-          type="button" // ⭐ Critical: Prevents form submission refresh
+          type="button"
           onClick={() => handlePageClick(currentPage + 1)}
           disabled={currentPage === totalPages}
           className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
