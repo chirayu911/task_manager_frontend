@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
     Building2, User, MapPin, Hash, Globe, Mail,
-    Phone, AtSign, DollarSign, Briefcase, Loader, ArrowLeft,
+    Phone, AtSign, Loader, ArrowLeft,
     Lock, Eye, EyeOff, CircleUser
 } from 'lucide-react';
 import API from '../api'; 
@@ -83,7 +83,6 @@ const SelectField = ({ icon: Icon, label, required, options, className = "", ...
     </div>
 );
 
-// MAIN COMPONENT
 export default function CompanyRegistrationPage() {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
@@ -92,7 +91,7 @@ export default function CompanyRegistrationPage() {
     const [formData, setFormData] = useState({
         companyName: '',
         owner: '',
-        username: '', // ⭐ Added Username for login
+        username: '',
         streetAddress: '',
         city: '',
         state: '',
@@ -117,32 +116,23 @@ export default function CompanyRegistrationPage() {
         setError('');
 
         try {
+            // ⭐ Backend will now take these fields and join them into fullAddress
             await API.post('/auth/register-company', formData);
-            navigate('/login', { state: { message: 'Company registered successfully! Please log in.' } });
+            navigate('/login', { state: { message: 'Registration successful! Log in with your owner credentials.' } });
         } catch (err) {
             console.error(err);
-            // Will display the exact error sent from the backend (e.g. "Username taken")
-            setError(err.response?.data?.message || 'Failed to register company. Please try again.');
+            setError(err.response?.data?.message || 'Connection error. Check if backend is running.');
         } finally {
             setLoading(false);
         }
     };
 
     const countryOptions = [
-        { value: 'us', label: 'United States' },
-        { value: 'ca', label: 'Canada' },
-        { value: 'uk', label: 'United Kingdom' },
-        { value: 'in', label: 'India' },
-        { value: 'au', label: 'Australia' },
-    ];
-
-    const industryOptions = [
-        { value: 'technology', label: 'Technology' },
-        { value: 'finance', label: 'Finance' },
-        { value: 'healthcare', label: 'Healthcare' },
-        { value: 'manufacturing', label: 'Manufacturing' },
-        { value: 'retail', label: 'Retail' },
-        { value: 'other', label: 'Other' },
+        { value: 'USA', label: 'United States' },
+        { value: 'Canada', label: 'Canada' },
+        { value: 'UK', label: 'United Kingdom' },
+        { value: 'India', label: 'India' },
+        { value: 'Australia', label: 'Australia' },
     ];
 
     return (
@@ -194,11 +184,6 @@ export default function CompanyRegistrationPage() {
                             <InputField icon={MapPin} label="State" name="state" value={formData.state} onChange={handleChange} placeholder="State / Province" required />
                             <InputField icon={Hash} label="Zip Code" name="zipCode" value={formData.zipCode} onChange={handleChange} placeholder="Postal Code" required />
                             <SelectField icon={Globe} label="Country" name="country" value={formData.country} onChange={handleChange} options={countryOptions} required />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <InputField icon={DollarSign} label="Nominal Capital" type="text" name="nominalCapital" value={formData.nominalCapital} onChange={handleChange} placeholder="e.g. $100,000" />
-                            <SelectField icon={Briefcase} label="Industry" name="industry" value={formData.industry} onChange={handleChange} options={industryOptions} required />
                         </div>
                     </div>
 

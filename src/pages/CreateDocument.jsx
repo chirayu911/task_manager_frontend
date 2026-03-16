@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Save, ArrowLeft, Loader, Search, X,
-  Edit3, Users, Trash2, Scissors, Zap, ZapOff, Lock, Unlock
+  Users, Trash2, Zap, ZapOff, Lock
 } from 'lucide-react';
 import TextEditor from '../components/TextEditor';
 import API from '../api';
@@ -13,22 +13,20 @@ export default function CreateDocument({ user, activeProjectId, notify, refreshU
   const location = useLocation();
 
   const [currentDocId, setCurrentDocId] = useState(id);
-
   const [title, setTitle] = useState('Untitled');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [fileExtension, setFileExtension] = useState('doc');
   const [content, setContent] = useState('');
-  const [pages, setPages] = useState(['']);
-  
-  const [hasPermission, setHasPermission] = useState(false); 
-  const [isEditMode, setIsEditMode] = useState(false); 
-  const [canEdit, setCanEdit] = useState(false); 
+
+  const [hasPermission, setHasPermission] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
+
+  // ⭐ FIX: Properly detect View Mode from the Router State
+  const isViewOnlyState = location.state?.viewOnly || false;
 
   const [loading, setLoading] = useState(false);
-  const [isPrintPreview, setIsPrintPreview] = useState(false);
-  
-  // ⭐ Initialize strictly from the global database object
   const [isAutoSave, setIsAutoSave] = useState(user?.preferences?.autoSaveEnabled || false);
-  
   const [lastSyncedContent, setLastSyncedContent] = useState('');
 
   const [showAccessModal, setShowAccessModal] = useState(false);
@@ -37,24 +35,13 @@ export default function CreateDocument({ user, activeProjectId, notify, refreshU
   const [userSearch, setUserSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  const [isPrintPreview, setIsPrintPreview] = useState(false); 
 
-  // ⭐ FIX: We only sync from the database when the component first loads or the user logs in.
-  // By tracking user?._id instead of user?.preferences, we stop stale data from flickering the switch.
   useEffect(() => {
     if (user?.preferences?.autoSaveEnabled !== undefined) {
       setIsAutoSave(user.preferences.autoSaveEnabled);
     }
-  }, [user?._id]); 
-
-  useEffect(() => {
-    const lines = content.split('\n');
-    const linesPerPage = 45; 
-    const newPages = [];
-    for (let i = 0; i < lines.length; i += linesPerPage) {
-      newPages.push(lines.slice(i, i + linesPerPage).join('\n'));
-    }
-    setPages(newPages.length > 0 ? newPages : ['']);
-  }, [content]);
+  }, [user?._id]);
 
   useEffect(() => {
     const init = async () => {
@@ -64,9 +51,9 @@ export default function CreateDocument({ user, activeProjectId, notify, refreshU
           API.get(`/projects/${activeProjectId}/users`),
           id ? API.get(`/documents/${id}`) : Promise.resolve({ data: null })
         ]);
-        
+
         setProjectUsers(uRes.data || []);
-        
+
         if (!id) {
           setHasPermission(true);
           setIsEditMode(true);
@@ -78,43 +65,38 @@ export default function CreateDocument({ user, activeProjectId, notify, refreshU
           setTitle(doc.title || 'Untitled');
           setContent(doc.content || '');
           setLastSyncedContent(doc.content || '');
-          
+
+          if (doc.fileType) {
+            setFileExtension(doc.fileType.toLowerCase());
+          }
+
           const isOwner = doc.uploadedBy?._id === user?._id || doc.uploadedBy === user?._id;
           const userEntry = doc.allowedUsers?.find(u => (u.userId?._id === user?._id || u.userId === user?._id));
           const userHasRights = isOwner || (userEntry && userEntry.canEdit === true);
-          const isViewPath = window.location.pathname.includes('/view/text/');
-          
-          setHasPermission(userHasRights && !isViewPath);
-          setIsEditMode(false); 
+
+          setHasPermission(userHasRights && !isViewOnlyState);
+          setIsEditMode(false);
           setSelectedUsers(doc.allowedUsers?.map(u => ({ ...u.userId, canEdit: u.canEdit })) || []);
         }
-      } catch (err) { 
-        console.error(err); 
+      } catch (err) {
+        console.error(err);
       }
     };
     init();
-  }, [activeProjectId, id, user?._id, location.pathname]); 
+  }, [activeProjectId, id, user?._id, isViewOnlyState]);
 
   useEffect(() => {
-    setCanEdit(hasPermission && isEditMode);
-  }, [hasPermission, isEditMode]);
+    setCanEdit(hasPermission && isEditMode && !isViewOnlyState);
+  }, [hasPermission, isEditMode, isViewOnlyState]);
 
-  // ⭐ DATABASE ONLY TOGGLE: Updates the UI instantly, then tells the database
   const handleToggleAutoSave = async () => {
     const newValue = !isAutoSave;
-    setIsAutoSave(newValue); // Instant UI update
-    
+    setIsAutoSave(newValue);
     try {
-      // 1. Save directly to the User database
       await API.put('/auth/preferences', { autoSaveEnabled: newValue });
-      
-      // 2. Trigger global App.js refresh silently in the background
-      if (typeof refreshUser === 'function') {
-       
-      }
+      if (typeof refreshUser === 'function') refreshUser();
     } catch (err) {
-      console.error("AutoSave DB Error:", err);
-      setIsAutoSave(!newValue); // Only rolls back if the backend actually crashes
+      setIsAutoSave(!newValue);
     }
   };
 
@@ -127,17 +109,16 @@ export default function CreateDocument({ user, activeProjectId, notify, refreshU
       if (!isSilent) setLoading(true);
       const payload = {
         title, content, project: activeProjectId, type: 'text',
-        documentId: currentDocId, 
-        accessType: 'restricted',
+        documentId: currentDocId, accessType: 'restricted', fileExtension,
         allowedUsers: selectedUsers.map(u => ({ userId: u._id, canEdit: u.canEdit }))
       };
-      
-      const { data } = currentDocId 
-        ? await API.put(`/documents/${currentDocId}`, payload) 
+
+      const { data } = currentDocId
+        ? await API.put(`/documents/${currentDocId}`, payload)
         : await API.post('/documents/text-doc', payload);
-            
+
       if (!currentDocId && data._id) {
-        setCurrentDocId(data._id); 
+        setCurrentDocId(data._id);
         window.history.replaceState(null, '', `/documents/edit/text/${data._id}`);
       }
 
@@ -147,14 +128,12 @@ export default function CreateDocument({ user, activeProjectId, notify, refreshU
         if (notify) notify('success', 'Document saved successfully!');
         navigate('/documents');
       }
-
     } catch (err) {
-      console.error(err);
       if (!isSilent && notify) notify('error', 'Failed to save document.');
     } finally {
       if (!isSilent) setLoading(false);
     }
-  }, [title, content, activeProjectId, currentDocId, selectedUsers, canEdit, navigate, notify]);
+  }, [title, content, activeProjectId, currentDocId, selectedUsers, canEdit, navigate, notify, fileExtension]);
 
   useEffect(() => {
     let timer;
@@ -173,32 +152,23 @@ export default function CreateDocument({ user, activeProjectId, notify, refreshU
   };
 
   const toggleEditPermission = (userId) => {
-    setSelectedUsers(selectedUsers.map(u => 
+    setSelectedUsers(selectedUsers.map(u =>
       u._id === userId ? { ...u, canEdit: !u.canEdit } : u
     ));
   };
 
   return (
-    <div className={`flex flex-col h-screen overflow-hidden ${isPrintPreview ? 'bg-white' : 'bg-gray-100 dark:bg-gray-950'}`}>
-      
-      {hasPermission && !isEditMode && !!currentDocId && (
+    <div className="flex flex-col h-screen overflow-hidden bg-gray-100 dark:bg-gray-950">
+
+      {hasPermission && !isEditMode && !isViewOnlyState && !!currentDocId && (
         <div className="sticky top-0 z-40 px-6 py-2 border-b flex items-center justify-between transition-all bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800">
           <div className="flex items-center gap-3">
-            <div className="p-1.5 rounded-lg bg-amber-500 text-white">
-              <Lock size={16} />
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-tight text-amber-700 dark:text-amber-300">
-                Editor Locked
-              </p>
-            </div>
+            <div className="p-1.5 rounded-lg bg-amber-500 text-white"><Lock size={16} /></div>
+            <p className="text-xs font-bold uppercase tracking-tight text-amber-700 dark:text-amber-300">Editor Locked</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-black uppercase text-gray-400">Enable Editing</span>
-            <button 
-              onClick={() => setIsEditMode(true)} 
-              className="w-12 h-6 rounded-full relative transition-all shadow-inner bg-gray-300 dark:bg-gray-700 hover:bg-gray-400 dark:hover:bg-gray-600"
-            >
+            <button onClick={() => setIsEditMode(true)} className="w-12 h-6 rounded-full relative transition-all shadow-inner bg-gray-300 dark:bg-gray-700 hover:bg-gray-400">
               <div className="absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm left-1" />
             </button>
           </div>
@@ -210,23 +180,47 @@ export default function CreateDocument({ user, activeProjectId, notify, refreshU
           <div className="flex items-center gap-4">
             <button onClick={() => navigate('/documents')} className="p-1 hover:bg-gray-200 dark:bg-gray-800 rounded-full transition-colors"><ArrowLeft size={16} /></button>
             <div className="flex items-center gap-2 border-x px-3 border-gray-300 dark:border-gray-700">
+              
               {isEditingTitle && canEdit ? (
                 <input type="text" value={title} onBlur={() => setIsEditingTitle(false)} autoFocus className="bg-white dark:bg-gray-800 px-2 rounded outline-none border border-blue-500" onChange={(e) => setTitle(e.target.value)} />
               ) : (
-                <span className={`font-semibold ${canEdit ? 'cursor-text' : 'cursor-default'}`} onClick={() => canEdit && setIsEditingTitle(true)}>{title || 'Untitled'}</span>
+                <div className="flex items-center gap-2">
+                  <span className={`font-semibold ${canEdit ? 'cursor-text' : 'cursor-default'}`} onClick={() => canEdit && setIsEditingTitle(true)}>
+                    {title || 'Untitled'}
+                  </span>
+                  
+                  {/* ⭐ NEW: Document ID Badge */}
+                  {currentDocId && (
+                    <span 
+                      className="text-[9px] font-mono font-black text-gray-500 bg-gray-200 dark:bg-gray-800 px-1.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-700 cursor-pointer hover:bg-gray-300 transition-colors"
+                      title="Click to copy Document ID"
+                      onClick={() => {
+                        navigator.clipboard.writeText(currentDocId);
+                        if (notify) notify('info', 'Document ID copied to clipboard!');
+                      }}
+                    >
+                      ID: {currentDocId}
+                    </span>
+                  )}
+                </div>
               )}
+
+              <select value={fileExtension} onChange={(e) => setFileExtension(e.target.value)} disabled={!canEdit} className="bg-transparent text-[11px] font-black text-gray-400 hover:text-blue-600 outline-none cursor-pointer transition-colors uppercase ml-1">
+                <option value="doc">.DOC (A4 Format)</option>
+                <option value="txt">.TXT (Continuous Text)</option>
+              </select>
             </div>
           </div>
 
           <div className="flex items-center gap-6">
             {canEdit && (
-               <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   {isAutoSave ? <Zap size={14} className="text-blue-600 animate-pulse" /> : <ZapOff size={14} className="text-gray-400" />}
                   <span className={`text-[10px] font-black uppercase ${isAutoSave ? 'text-blue-600' : 'text-gray-400'}`}>AutoSave</span>
                 </div>
                 <button onClick={handleToggleAutoSave} className={`w-10 h-5 rounded-full relative transition-all ${isAutoSave ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isAutoSave ? 'left-6' : 'left-1'}`} />
+                  <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isAutoSave ? 'left-6' : 'left-1'}`} />
                 </button>
               </div>
             )}
@@ -240,33 +234,54 @@ export default function CreateDocument({ user, activeProjectId, notify, refreshU
           </div>
           <div className="flex items-center gap-2">
             {canEdit ? (
-              !isAutoSave && (
-                <button onClick={() => handleSave(false)} disabled={loading} className="px-7 py-2 bg-blue-600 text-white rounded-md font-bold text-sm shadow-md hover:bg-blue-700 transition-all">{loading ? <Loader className="animate-spin" size={16} /> : <Save size={16} className="inline mr-2" />} Save</button>
-              )
+              !isAutoSave && <button onClick={() => handleSave(false)} disabled={loading} className="px-7 py-2 bg-blue-600 text-white rounded-md font-bold text-sm shadow-md hover:bg-blue-700 transition-all">{loading ? <Loader className="animate-spin" size={16} /> : <Save size={16} className="inline mr-2" />} Save</button>
             ) : (
               <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-4">Viewing Only</div>
             )}
-            <button onClick={() => navigate('/documents')} className="px-4 py-2 text-gray-500 font-bold hover:text-red-500 transition-colors text-sm uppercase tracking-widest">{hasPermission ? 'Cancel' : 'Back'}</button>
+            <button onClick={() => navigate('/documents')} className="px-4 py-2 text-gray-500 font-bold hover:text-red-500 transition-colors text-sm uppercase tracking-widest">{hasPermission && !isViewOnlyState ? 'Cancel' : 'Back'}</button>
           </div>
         </div>
       </header>
 
+      {/* ⭐ Dynamic Main Section based on Extension */}
       <main className={`flex-1 overflow-y-auto flex flex-col items-center custom-scrollbar transition-all duration-500 py-12 gap-12 ${isPrintPreview ? 'bg-white' : 'bg-[#f0f2f5] dark:bg-gray-950'}`}>
-        {pages.map((pageContent, index) => (
-          <div key={index} className="relative bg-white page-sheet shadow-md border border-gray-200 dark:border-gray-800" style={{ width: '794px', height: '1123px', padding: '12mm', boxSizing: 'border-box', flexShrink: 0, overflow: 'hidden' }}>
-            <div className="h-full w-full max-h-full overflow-hidden flex flex-col">
-              {index === pages.length - 1 ? (
-                <div className="writing-zone w-full overflow-hidden" style={{ maxHeight: 'calc(1123px - 12mm)', display: 'block', position: 'relative' }}>
-                  <TextEditor value={content} onChange={setContent} readOnly={!canEdit} />
-                </div>
-              ) : (
-                <div className="prose max-w-none whitespace-pre-wrap text-gray-900 font-serif leading-relaxed h-full overflow-hidden bg-white p-2" style={{ maxHeight: 'calc(1123px - 12mm)', backgroundColor: 'white', color: '#111827' }}>{pageContent}</div>
-              )}
+        
+        {fileExtension === 'doc' ? (
+          // ⭐ DOC MODE: Continuous A4 Page with Page Break Indicators
+          <div 
+            className="relative bg-white shadow-2xl border border-gray-200 dark:border-gray-800" 
+            style={{ 
+              width: '210mm',       // Standard A4 Width
+              minHeight: '297mm',   // Standard A4 Height
+              boxSizing: 'border-box'
+            }}
+          >
+            {/* Page Break Overlay Line */}
+            <div 
+              className="absolute inset-0 z-20 pointer-events-none opacity-40"
+              style={{
+                backgroundImage: 'repeating-linear-gradient(to bottom, transparent, transparent calc(297mm - 2px), #2563eb calc(297mm - 2px), #2563eb 297mm)',
+                backgroundSize: '100% 297mm'
+              }}
+            />
+
+            {/* Text Editor Container */}
+            <div className="relative z-10 w-full h-full text-gray-900 prose max-w-none" style={{ padding: '25mm 20mm' }}>
+              <TextEditor value={content} onChange={setContent} readOnly={!canEdit} />
             </div>
           </div>
-        ))}
-      </main>
+        ) : (
+          // ⭐ TXT MODE: Full-width continuous view
+          <div className="relative bg-white shadow-md border border-gray-200 dark:border-gray-800 w-full max-w-5xl min-h-[800px] p-10 flex flex-col">
+            <div className="flex-1 w-full overflow-hidden text-gray-900 prose max-w-none">
+               <TextEditor value={content} onChange={setContent} readOnly={!canEdit} />
+            </div>
+          </div>
+        )}
 
+      </main>
+      
+      {/* Access Modal (Unchanged) */}
       {showAccessModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm print:hidden">
           <div className="bg-white dark:bg-gray-900 w-full max-w-2xl rounded-[24px] shadow-2xl overflow-hidden">

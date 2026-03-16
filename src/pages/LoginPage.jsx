@@ -26,7 +26,7 @@ export default function LoginPage({ setUser, notify }) {
     setError('');
   }, []);
 
-  const handleLogin = async (e) => {
+ const handleLogin = async (e) => {
     e.preventDefault();
     
     // Front-end validation
@@ -37,23 +37,28 @@ export default function LoginPage({ setUser, notify }) {
     setLoading(true);
 
     try {
+      // 1. Authenticate with backend
+      // Note: The backend now sets the JWT as an httpOnly cookie
       const response = await API.post('/auth/login', { username, password });
+      const userData = response.data;
       
-      // Update global user state
-      setUser(response.data);
+      // 2. ⭐ PERSIST PROFILE: Store non-sensitive user data for App.js check
+      // This allows the frontend to know the user's role and company context immediately
+      localStorage.setItem('profile', JSON.stringify(userData));
+
+      // 3. Update global user state
+      setUser(userData);
 
       if (notify) {
-        notify('success', `Welcome back, ${response.data.name || username}!`);
+        notify('success', `Welcome back, ${userData.name || username}!`);
       }
 
-      // ⭐ DEEP LINK REDIRECT LOGIC
+      // 4. ⭐ DEEP LINK & ROLE REDIRECT LOGIC
       const params = new URLSearchParams(location.search);
       const redirectTo = params.get('redirect');
 
       if (redirectTo) {
         setIsRedirecting(true);
-        // We use a slight delay or immediate navigation
-        // decodeURIComponent handles the encoding from requestMail.js
         const decodedPath = decodeURIComponent(redirectTo);
         
         // Timeout ensures the 'setUser' state propagates before navigation
@@ -61,7 +66,10 @@ export default function LoginPage({ setUser, notify }) {
           navigate(decodedPath);
         }, 500);
       } else {
-        navigate('/'); 
+        // ⭐ NEW FEATURE: Redirect based on Company Owner or Staff status
+        // If the user is a Company Owner or Admin, send to Admin Dashboard
+        const isAdminOrOwner = userData.isCompanyOwner || userData.role === 'admin';
+        navigate(isAdminOrOwner ? '/admin' : '/staff'); 
       }
       
     } catch (err) {

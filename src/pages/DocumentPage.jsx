@@ -111,6 +111,27 @@ export default function DocumentPage({ user, activeProjectId }) {
     }
   };
 
+  // ⭐ NEW: Handle PDF Preview & Download
+  const handlePreviewPDF = async (docId) => {
+    try {
+      setNotification({ type: 'info', message: "Generating PDF..." });
+      
+      // Fetch as a Blob to handle the binary PDF data correctly
+      const response = await API.get(`/documents/${docId}/pdf`, { responseType: 'blob' });
+      
+      // Create a temporary local URL for the PDF
+      const fileURL = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      
+      // Open in a new tab (Browsers natively show the PDF structure and provide a download button)
+      window.open(fileURL, "_blank");
+      
+      setNotification(null); // clear loading notification
+    } catch (err) {
+      console.error(err);
+      setNotification({ type: 'error', message: "Failed to generate PDF. Make sure it's a .DOC file." });
+    }
+  };
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -149,9 +170,8 @@ export default function DocumentPage({ user, activeProjectId }) {
 
         <div className="flex gap-4">
           {can('documents_create') && (
-            /* ⭐ Emerald Green "Bulk Upload" Buttoncite: filename=image_0.pngcite: 1.1cite: 1.3cite: 1.2 */
             <button
-              onClick={() => navigate("/documents/create/text")} // Or whatever bulk route
+              onClick={() => navigate("/documents/create/text")}
               className="flex items-center gap-2.5 px-6 py-3.5 bg-green-600 text-white rounded-2xl font-black text-sm hover:bg-green-700 transition-all shadow-md shadow-green-200 dark:shadow-none animate-in fade-in zoom-in-95 duration-200 active:scale-95"
             >
               <Plus size={18} /> Create document
@@ -159,7 +179,6 @@ export default function DocumentPage({ user, activeProjectId }) {
           )}
 
           {can('documents_create') && (
-            /* ⭐ Royal Blue "Add Task" Buttoncite: filename=image_0.pngcite: 1.1cite: 1.3cite: 1.2 */
             <button
               onClick={() => navigate("/documents/create")}
               className="flex items-center gap-2.5 px-6 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none animate-in fade-in zoom-in-95 duration-200 active:scale-95"
@@ -188,7 +207,7 @@ export default function DocumentPage({ user, activeProjectId }) {
                 <tr className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                   <th className="px-6 py-5">Document Details</th>
                   <th className="px-6 py-5">Access</th>
-                  <th className="px-6 py-5">View Content</th> {/* ⭐ New Column */}
+                  <th className="px-6 py-5">View Content</th>
                   <th className="px-6 py-5 text-right">Actions</th>
                 </tr>
               </thead>
@@ -209,12 +228,10 @@ export default function DocumentPage({ user, activeProjectId }) {
                         </span>
                       </td>
 
-                      {/* ⭐ Instruction: View Content Field */}
                       <td className="px-6 py-4">
                         <button
                           onClick={() => {
                             if (doc.type === 'text') {
-                              // Passes 'viewOnly' state to the editor page
                               navigate(`/documents/edit/text/${doc._id}`, { state: { viewOnly: true } });
                             } else {
                               navigate(`/documents/view/${doc._id}`);
@@ -237,11 +254,23 @@ export default function DocumentPage({ user, activeProjectId }) {
                             )
                           ) : (
                             <div className="flex items-center gap-2">
-                              {/* Standard Download logic remains intact */}
+                              
+                              {/* Standard File Download */}
                               {doc.type === 'file' && doc.fileUrl && (
-                                <a href={`http://localhost:5000/${doc.fileUrl.replace(/\\/g, '/')}`} target="_blank" rel="noopener noreferrer" download className="p-2 text-gray-400 hover:text-primary-600">
+                                <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${doc.fileUrl.replace(/\\/g, '/')}`} target="_blank" rel="noopener noreferrer" download className="p-2 text-gray-400 hover:text-primary-600">
                                   <Download size={18} />
                                 </a>
+                              )}
+
+                              {/* ⭐ NEW: PDF Preview/Download Button (Only for .DOC files) */}
+                              {doc.type === 'text' && doc.fileType?.toUpperCase() === 'DOC' && (
+                                <button
+                                  onClick={() => handlePreviewPDF(doc._id)}
+                                  title="Preview & Download PDF"
+                                  className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-[11px] font-black uppercase tracking-wider transition-colors"
+                                >
+                                  <FileText size={14} /> PDF
+                                </button>
                               )}
 
                               {can('documents_update') && (

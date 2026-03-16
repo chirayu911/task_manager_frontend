@@ -21,14 +21,16 @@ import ProjectFormPage from "./pages/ProjectFormPage";
 
 // New Pages
 import TeamPage from "./pages/TeamPage";
-import IssuePage from "./pages/IssuePage";
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import SubscriptionFormPage from './pages/SubscriptionFormPage';
 import DocumentPage from './pages/DocumentPage';
 import DocumentFormPage from './pages/DocumentFormPage';
-import CreateTextDocument from "./pages/CreateDocument";      
+import CreateTextDocument from "./pages/CreateDocument";
+import CompanyRegistrationPage from "./pages/CompanyRegistrationPage"; // ⭐ Imported Registration Page
+import CompanyProfilePage from "./pages/CompanyProfilePage";
+import CompanySettingsPage from './pages/CompanySettingsPage';
 
 // Components
 import MainLayout from "./components/MainLayout";
@@ -129,6 +131,32 @@ export default function App() {
   const perms = useMemo(() => user?.permissions || [], [user]);
   const isAdmin = useMemo(() => roleName === "admin" || perms.includes("*"), [roleName, perms]);
 
+  const refreshUser = async () => {
+    try {
+      const { data } = await API.get("/auth/me");
+      setUser(data);
+    } catch (error) {
+      console.error("Failed to refresh user data");
+    }
+  };
+
+  const syncUserSession = async (userData) => {
+    // Ensure we have the most complete version of the user
+    // If userData is missing permissions or company name, we fetch it
+    if (!userData.permissions || typeof userData.company !== 'object') {
+      try {
+        const { data } = await API.get("/auth/me");
+        setUser(data);
+        localStorage.setItem('profile', JSON.stringify(data));
+      } catch (err) {
+        console.error("Sync failed", err);
+      }
+    } else {
+      setUser(userData);
+      localStorage.setItem('profile', JSON.stringify(userData));
+    }
+  };
+
   // 4. PROTECTED ROUTE COMPONENT
   const ProtectedRoute = ({ children, requiredPermission }) => {
     if (loading) return null;
@@ -189,12 +217,12 @@ export default function App() {
                 (() => {
                   const params = new URLSearchParams(location.search);
                   const redirectTo = params.get('redirect');
-                  
+
                   // If we are logged in but have a redirect (e.g. from email link), follow it
                   if (redirectTo) {
                     return <Navigate to={decodeURIComponent(redirectTo)} replace />;
                   }
-                  
+
                   // Default bounce to dashboard
                   return <Navigate to={isAdmin ? "/admin" : "/staff"} replace />;
                 })()
@@ -203,6 +231,12 @@ export default function App() {
           />
         ))}
 
+        {/* ⭐ REGISTRATION ROUTE */}
+        <Route
+          path="/register"
+          element={!user ? <CompanyRegistrationPage /> : <Navigate to="/" replace />}
+        />
+
         <Route path="/forgot-password" element={!user ? <ForgotPasswordPage /> : <Navigate to="/" replace />} />
         <Route path="/reset-password/:token" element={!user ? <ResetPasswordPage /> : <Navigate to="/" replace />} />
 
@@ -210,6 +244,8 @@ export default function App() {
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
         <Route path="/staff" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
 
+        <Route path="/admin/company" element={<ProtectedRoute> <CompanyProfilePage /> </ProtectedRoute>} />
+        <Route path="/admin/company-settings" element={<ProtectedRoute><CompanySettingsPage user={user} /> </ProtectedRoute>} />
         <Route path="/tasks" element={<ProtectedRoute requiredPermission="tasks_read"><TaskPage user={user} socket={socket} activeProjectId={activeProjectId} /></ProtectedRoute>} />
         <Route path="/team" element={<ProtectedRoute requiredPermission="projects_read"><TeamPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
 
@@ -248,11 +284,11 @@ export default function App() {
 
         <Route path="/documents" element={<ProtectedRoute requiredPermission="projects_read"><DocumentPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
         <Route path="/documents/create" element={<ProtectedRoute requiredPermission="documents_create"><DocumentFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
-        <Route path="/documents/create/text" element={<ProtectedRoute requiredPermission="documents_create"><CreateTextDocument user={user} activeProjectId={activeProjectId} notify={notify} /></ProtectedRoute>} />
+        <Route path="/documents/create/text" element={<ProtectedRoute requiredPermission="documents_create"><CreateTextDocument user={user} activeProjectId={activeProjectId} notify={notify} refreshUser={refreshUser} /></ProtectedRoute>} />
         <Route path="/documents/edit/:id" element={<ProtectedRoute requiredPermission="documents_update"><DocumentFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
-        <Route path="/documents/edit/text/:id" element={<ProtectedRoute requiredPermission="documents_update"><CreateTextDocument user={user} activeProjectId={activeProjectId} notify={notify} /></ProtectedRoute>} />
+        <Route path="/documents/edit/text/:id" element={<ProtectedRoute requiredPermission="documents_update"><CreateTextDocument user={user} activeProjectId={activeProjectId} notify={notify} refreshUser={refreshUser} /></ProtectedRoute>} />
         <Route path="/documents/view/:id" element={<ProtectedRoute requiredPermission="projects_read"><DocumentFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
-        
+
         <Route
           path="/documents/requests/:requestId"
           element={
