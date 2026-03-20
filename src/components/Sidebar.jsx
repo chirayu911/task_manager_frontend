@@ -91,19 +91,18 @@ export default function Sidebar({ user, handleLogout }) {
       name: "Roles",
       path: "/admin/roles",
       icon: <Briefcase size={20} />,
-      allowed: can("roles_read"),
+      allowed: isAdmin && !user?.isCompanyOwner,
     },
     {
       name: "Permissions",
       path: "/admin/permissions",
       icon: <ShieldPlus size={20} />,
-      allowed: can("permissions_read"),
+      allowed: isAdmin && !user?.isCompanyOwner,
     },
     {
       name: "Companies",
       path: "/admin/company",
       icon: <Building2 size={20} />,
-      // ⭐ Only visible to Admin or Company Owner
       allowed: isAdmin && !user?.isCompanyOwner,
     },
     {
@@ -118,7 +117,7 @@ export default function Sidebar({ user, handleLogout }) {
       path: "/admin/company-settings",
       icon: <Building2 size={20} />,
       // ⭐ Only visible to Admin or Company Owner
-      allowed: user?.isCompanyOwner,
+      allowed: isAdmin || user?.isCompanyOwner,
     },
   ];
 

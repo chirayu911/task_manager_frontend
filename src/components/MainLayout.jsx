@@ -7,7 +7,9 @@ export default function MainLayout({
   user,
   handleLogout,
   activeProjectId,
-  setActiveProjectId
+  setActiveProjectId,
+  activeCompanyId,     // ⭐ NEW
+  setActiveCompanyId   // ⭐ NEW
 }) {
 
   const can = useCallback((permission) => {
@@ -29,6 +31,8 @@ export default function MainLayout({
         handleLogout={handleLogout}
         activeProjectId={activeProjectId}
         setActiveProjectId={setActiveProjectId}
+        activeCompanyId={activeCompanyId}       // ⭐ NEW: Passed to Navbar
+        setActiveCompanyId={setActiveCompanyId} // ⭐ NEW: Passed to Navbar
       />
       
       <div className="flex">

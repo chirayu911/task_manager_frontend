@@ -5,8 +5,6 @@ const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 /**
  * ⭐ CUSTOM AXIOS INSTANCE
- * withCredentials: true is critical for allowing the browser to send 
- * and receive cookies (JWT) across different origins/tunnels.
  */
 const API = axios.create({
   baseURL: BASE_URL,
@@ -14,20 +12,16 @@ const API = axios.create({
 });
 
 // ==========================================
-// ⭐ REQUEST INTERCEPTOR: Inject JWT
+// ⭐ REQUEST INTERCEPTOR: Inject JWT & Context
 // ==========================================
 API.interceptors.request.use(
   (config) => {
-    // Retrieve the user profile from LocalStorage
+    // 1. Inject Authorization Token
     const profile = localStorage.getItem('profile');
-    
     if (profile) {
       try {
         const parsedProfile = JSON.parse(profile);
-        const token = parsedProfile.token;
-        
-        // If a token exists, inject it into the Authorization header
-        // The backend uses this token to extract the companyID and scope data.
+        const token = parsedProfile?.token;
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
@@ -35,6 +29,31 @@ API.interceptors.request.use(
         console.error("Error parsing profile from localStorage", e);
       }
     }
+
+    const activeCompany = localStorage.getItem('activeCompanyId');
+    if (activeCompany) {
+      config.headers['x-active-company-id'] = activeCompany;
+    }
+
+    /**
+     * ⭐ ADMIN & SUBSCRIPTION CONTEXT INJECTION
+     * We pull the activeCompanyId directly from localStorage. 
+     */
+    const activeCompanyId = localStorage.getItem('activeCompanyId');
+
+    // Regex to validate a 24-character MongoDB ObjectId
+    const isValidObjectId = (id) => /^[0-9a-fA-F]{24}$/.test(id);
+
+    // FIX: Only attach the header if it's a valid MongoDB ID. 
+    // This prevents sending strings like "all", "null", or "undefined" 
+    // which cause the backend 500 errors.
+    if (activeCompanyId && isValidObjectId(activeCompanyId)) {
+      config.headers['x-active-company-id'] = activeCompanyId;
+    } else {
+      // Ensure the header is removed if no valid ID is present
+      delete config.headers['x-active-company-id'];
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
@@ -46,43 +65,42 @@ API.interceptors.request.use(
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    const { status, config } = error.response || {};
+    const { status, config, data } = error.response || {};
 
     // 1. Handle Session Expiry or Unauthorized Access (401)
     if (status === 401) {
-      /**
-       * ⭐ PREVENTION OF REDIRECT LOOP
-       * We MUST ignore 401 errors for the session check route (/auth/me). 
-       * If we don't, failing to find a session will trigger a redirect 
-       * to login, which triggers another session check, creating a loop.
-       */
       if (config.url.includes('/auth/me') || window.location.pathname.includes('/login')) {
         return Promise.reject(error);
       }
 
-      // Capture current path + query strings (e.g., ?projectId=123)
-      // This ensures the user lands back on their specific task/project after re-login.
       const currentPath = window.location.pathname + window.location.search;
-      
-      // Clear local auth state as the session is no longer valid
+
       localStorage.removeItem('profile');
       localStorage.removeItem('activeProjectId');
+      localStorage.removeItem('activeCompanyId');
 
-      // Force redirect to login with a return path
       if (!window.location.pathname.includes('/login')) {
         window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
       }
     }
 
-    // 2. Handle Forbidden Access (403)
-    // This happens if a user tries to access a project from a DIFFERENT company.
+    // 2. Handle Forbidden Access (403) - SUBSCRIPTION LIMITS
     if (status === 403) {
-      console.error("Access Denied: You do not have permission for this company data.");
+      if (data?.limitReached) {
+        console.warn(`[Subscription Limit] ${data.resource}: ${data.message}`);
+      } else {
+        console.error("Access Denied (403): User lacks required permissions.");
+      }
     }
 
-    // 3. Global Error Logging
+    // 3. Handle Resource Not Found (404)
+    if (status === 404) {
+      console.error("Resource Not Found (404):", config.url);
+    }
+
+    // 4. Global Server Error (500)
     if (status === 500) {
-      console.error("Internal Server Error (500):", error.response?.data?.message || "Check server logs.");
+      console.error("Server Error (500):", data?.message || "Internal Server Error");
     }
 
     return Promise.reject(error);

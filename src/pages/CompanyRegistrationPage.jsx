@@ -118,7 +118,7 @@ export default function CompanyRegistrationPage() {
         try {
             // ⭐ Backend will now take these fields and join them into fullAddress
             await API.post('/auth/register-company', formData);
-            navigate('/login', { state: { message: 'Registration successful! Log in with your owner credentials.' } });
+            navigate('/choose-plan', { state: { message: 'Registration successful! Log in with your owner credentials.' } });
         } catch (err) {
             console.error(err);
             setError(err.response?.data?.message || 'Connection error. Check if backend is running.');

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader, FolderKanban, Users } from 'lucide-react';
+import { Loader, FolderKanban, Users, ShieldAlert } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
@@ -15,6 +15,9 @@ export default function ProjectPage({ user }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // ⭐ NEW: Usage state for subscription limits
+  const [usage, setUsage] = useState(null);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
@@ -22,7 +25,7 @@ export default function ProjectPage({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ⭐ BUG FIX 6 & 7: Intercept success messages passed from the Form page
+  // Intercept success messages passed from the Form page
   useEffect(() => {
     if (location.state?.feedback) {
       setFeedback(location.state.feedback);
@@ -45,7 +48,14 @@ export default function ProjectPage({ user }) {
     if (!user) return;
     try {
       setPageLoading(true);
-      const { data } = await API.get('/projects');
+      
+      // ⭐ Fetch both projects AND usage stats concurrently
+      const [projectsRes, usageRes] = await Promise.all([
+        API.get('/projects'),
+        API.get('/company/usage').catch(() => ({ data: null }))
+      ]);
+      
+      const data = projectsRes.data;
       
       let filtered = data;
       if (!isAdmin) {
@@ -54,6 +64,12 @@ export default function ProjectPage({ user }) {
         );
       }
       setProjects(filtered);
+
+      // ⭐ Set usage data if available
+      if (usageRes?.data?.projects) {
+        setUsage(usageRes.data.projects);
+      }
+
     } catch (err) { 
       setFeedback({ type: 'error', message: "Failed to load projects network data" });
     } finally { 
@@ -74,14 +90,32 @@ export default function ProjectPage({ user }) {
       setProjects(prev => prev.filter(p => p._id !== projectToDelete));
       setIsModalOpen(false);
       
-      // ⭐ BUG FIX 8: Make sure delete message displays properly
+      // Make sure delete message displays properly
       setFeedback({ type: 'success', message: "Delete Successful! Project removed." });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => setFeedback({ type: '', message: '' }), 4000);
+      
+      // Refresh usage stats after deletion
+      fetchProjects();
     } catch (err) { 
       setIsModalOpen(false);
       setFeedback({ type: 'error', message: "Project deletion failed. Check permissions." });
     }
+  };
+
+  // ⭐ NEW: Handler for the Create button with limit enforcement
+  const isLimitReached = usage && usage.max !== -1 && usage.current >= usage.max;
+  
+  const handleCreateClick = () => {
+    if (isLimitReached) {
+      setFeedback({ 
+        type: 'error', 
+        message: `Subscription Limit Reached: You have used ${usage.current} of ${usage.max} projects. Please upgrade your plan.` 
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    navigate("/projects/create");
   };
 
   const filteredProjects = useMemo(() => {
@@ -108,15 +142,27 @@ export default function ProjectPage({ user }) {
         onClose={() => setFeedback({ type: '', message: '' })} 
       />
 
-      <div className="flex justify-between items-start md:items-center mb-6 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2 text-gray-800 dark:text-white">
             <FolderKanban className="text-primary-600 dark:text-primary-400"/> Project Portfolio
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">Manage high-level project containers and team assignments</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage high-level project containers and team assignments</p>
+          
+          {/* ⭐ NEW: Usage Indicator Badge */}
+          {usage && usage.max !== -1 && (
+            <div className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${isLimitReached ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' : 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'}`}>
+              <ShieldAlert size={12} />
+              Plan Usage: {usage.current} / {usage.max} Projects
+            </div>
+          )}
         </div>
+
         {can('projects_create') && (
-          <CreateButton onClick={() => navigate("/projects/create")} label="New Project" />
+          <div className={isLimitReached ? "opacity-70 cursor-not-allowed" : ""}>
+            {/* ⭐ Updated onClick to use our new handler */}
+            <CreateButton onClick={handleCreateClick} label="New Project" />
+          </div>
         )}
       </div>
 

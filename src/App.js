@@ -28,9 +28,11 @@ import SubscriptionFormPage from './pages/SubscriptionFormPage';
 import DocumentPage from './pages/DocumentPage';
 import DocumentFormPage from './pages/DocumentFormPage';
 import CreateTextDocument from "./pages/CreateDocument";
-import CompanyRegistrationPage from "./pages/CompanyRegistrationPage"; // ⭐ Imported Registration Page
+import CompanyRegistrationPage from "./pages/CompanyRegistrationPage"; 
 import CompanyProfilePage from "./pages/CompanyProfilePage";
 import CompanySettingsPage from './pages/CompanySettingsPage';
+import SubscriptionSelectionPage from './pages/SubscriptionSelectionPage'; // Assumed from previous step
+import ActivityLogPage from './pages/ActivityLogPage'; // Bonus: Activity Log Page
 
 // Components
 import MainLayout from "./components/MainLayout";
@@ -55,6 +57,12 @@ export default function App() {
     return (stored && stored !== 'null' && stored !== 'undefined') ? stored : null;
   });
 
+  // ⭐ NEW: Company Context State Logic (For Admins)
+  const [activeCompanyId, setActiveCompanyId] = useState(() => {
+    const stored = localStorage.getItem('activeCompanyId');
+    return (stored && stored !== 'null' && stored !== 'undefined') ? stored : 'all'; // default to 'all'
+  });
+
   // Persist Active Project to LocalStorage
   useEffect(() => {
     if (activeProjectId) {
@@ -63,6 +71,15 @@ export default function App() {
       localStorage.removeItem('activeProjectId');
     }
   }, [activeProjectId]);
+
+  // ⭐ NEW: Persist Active Company to LocalStorage
+  useEffect(() => {
+    if (activeCompanyId) {
+      localStorage.setItem('activeCompanyId', activeCompanyId);
+    } else {
+      localStorage.removeItem('activeCompanyId');
+    }
+  }, [activeCompanyId]);
 
   // Global Notification Helper
   const notify = (type, message) => {
@@ -114,9 +131,10 @@ export default function App() {
       await API.post('/auth/logout');
       setUser(null);
       setActiveProjectId(null);
-      localStorage.removeItem('profile'); // Ensure localStorage is cleared
+      setActiveCompanyId('all'); // reset to default
+      localStorage.removeItem('profile'); 
       notify('info', 'Logged out successfully');
-      navigate('/login'); // Redirect to explicit login path
+      navigate('/login'); 
     } catch (err) {
       console.error("Logout error", err);
     }
@@ -129,7 +147,7 @@ export default function App() {
   }, [user]);
 
   const perms = useMemo(() => user?.permissions || [], [user]);
-  const isAdmin = useMemo(() => roleName === "admin" || perms.includes("*"), [roleName, perms]);
+  const isAdmin = useMemo(() => roleName === "admin" || roleName === "superadmin" || perms.includes("*"), [roleName, perms]);
 
   const refreshUser = async () => {
     try {
@@ -140,29 +158,11 @@ export default function App() {
     }
   };
 
-  const syncUserSession = async (userData) => {
-    // Ensure we have the most complete version of the user
-    // If userData is missing permissions or company name, we fetch it
-    if (!userData.permissions || typeof userData.company !== 'object') {
-      try {
-        const { data } = await API.get("/auth/me");
-        setUser(data);
-        localStorage.setItem('profile', JSON.stringify(data));
-      } catch (err) {
-        console.error("Sync failed", err);
-      }
-    } else {
-      setUser(userData);
-      localStorage.setItem('profile', JSON.stringify(userData));
-    }
-  };
-
   // 4. PROTECTED ROUTE COMPONENT
   const ProtectedRoute = ({ children, requiredPermission }) => {
     if (loading) return null;
 
     if (!user) {
-      // ⭐ ENHANCED: Capture pathname and search (query params)
       const currentPath = encodeURIComponent(location.pathname + location.search);
       return <Navigate to={`/login?redirect=${currentPath}`} replace />;
     }
@@ -177,6 +177,8 @@ export default function App() {
         handleLogout={handleLogout}
         activeProjectId={activeProjectId}
         setActiveProjectId={setActiveProjectId}
+        activeCompanyId={activeCompanyId}       // ⭐ Passed to MainLayout
+        setActiveCompanyId={setActiveCompanyId} // ⭐ Passed to MainLayout
       >
         {children}
       </MainLayout>
@@ -205,7 +207,7 @@ export default function App() {
       )}
 
       <Routes>
-        {/* ⭐ PUBLIC ROUTES: Handle Redirects for both logged-in and logged-out users */}
+        {/* PUBLIC ROUTES */}
         {["/", "/login"].map((path) => (
           <Route
             key={path}
@@ -218,12 +220,10 @@ export default function App() {
                   const params = new URLSearchParams(location.search);
                   const redirectTo = params.get('redirect');
 
-                  // If we are logged in but have a redirect (e.g. from email link), follow it
                   if (redirectTo) {
                     return <Navigate to={decodeURIComponent(redirectTo)} replace />;
                   }
 
-                  // Default bounce to dashboard
                   return <Navigate to={isAdmin ? "/admin" : "/staff"} replace />;
                 })()
               )
@@ -231,18 +231,16 @@ export default function App() {
           />
         ))}
 
-        {/* ⭐ REGISTRATION ROUTE */}
-        <Route
-          path="/register"
-          element={!user ? <CompanyRegistrationPage /> : <Navigate to="/" replace />}
-        />
-
+        {/* REGISTRATION & ONBOARDING */}
+        <Route path="/register" element={!user ? <CompanyRegistrationPage /> : <Navigate to="/" replace />} />
+        <Route path="/choose-plan" element={user ? <SubscriptionSelectionPage /> : <Navigate to="/login" replace />} />
         <Route path="/forgot-password" element={!user ? <ForgotPasswordPage /> : <Navigate to="/" replace />} />
         <Route path="/reset-password/:token" element={!user ? <ResetPasswordPage /> : <Navigate to="/" replace />} />
 
         {/* PROTECTED ROUTES */}
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
         <Route path="/staff" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
+        <Route path="/activity" element={<ProtectedRoute><ActivityLogPage user={user} /></ProtectedRoute>} />
 
         <Route path="/admin/company" element={<ProtectedRoute> <CompanyProfilePage /> </ProtectedRoute>} />
         <Route path="/admin/company-settings" element={<ProtectedRoute><CompanySettingsPage user={user} /> </ProtectedRoute>} />
@@ -258,7 +256,7 @@ export default function App() {
         <Route path="/tasks/edit/:id" element={<ProtectedRoute requiredPermission="tasks_update"><TaskFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
         <Route path="/tasks/view/:id" element={<ProtectedRoute requiredPermission="tasks_read"><TaskFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
 
-        <Route path="/admin/staff" element={<ProtectedRoute requiredPermission="staff_read"><AdminStaffCRUD user={user} socket={socket} /></ProtectedRoute>} />
+        <Route path="/admin/staff" element={<ProtectedRoute requiredPermission="staff_read"><AdminStaffCRUD user={user} socket={socket} activeCompanyId={activeCompanyId} /></ProtectedRoute>} />
         <Route path="/admin/staff/create" element={<ProtectedRoute requiredPermission="staff_create"><StaffFormPage /></ProtectedRoute>} />
         <Route path="/admin/staff/edit/:id" element={<ProtectedRoute requiredPermission="staff_update"><StaffFormPage /></ProtectedRoute>} />
 

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Loader, CheckCircle, AlertTriangle, Upload } from 'lucide-react';
+import { Loader, CheckCircle, AlertTriangle, Upload, ShieldAlert, ZapOff } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../api';
 
@@ -19,7 +19,7 @@ export default function TaskPage({ user, socket, activeProjectId }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 1. Initialize simple constants first
+  // 1. Initialize simple constants
   const isIssueMode = location.pathname.includes('/issues');
   const typeLabel = isIssueMode ? 'Issue' : 'Task';
   const basePath = isIssueMode ? '/issues' : '/tasks';
@@ -34,6 +34,13 @@ export default function TaskPage({ user, socket, activeProjectId }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
+  
+  // ⭐ UPDATED: Usage state to handle new subscription fields
+  const [usage, setUsage] = useState({
+    current: 0,
+    max: -1,
+    hasBulkUpload: false
+  });
 
   // 3. Initialize Permissions
   const roleName = useMemo(() => typeof user?.role === 'object' ? user.role?.name : user?.role, [user]);
@@ -41,18 +48,47 @@ export default function TaskPage({ user, socket, activeProjectId }) {
   const isAdmin = useMemo(() => roleName === 'admin' || roleName === 'superadmin' || perms.includes('*'), [roleName, perms]);
   const can = useCallback((perm) => isAdmin || perms.includes(perm), [isAdmin, perms]);
 
-  // 4. ⭐ CALL THE HOOK (Must happen BEFORE using fetchTasks)
+  // 4. CALL THE HOOK
   const { 
     tasks, setTasks, staffList, statusList, 
     pageLoading, handleInlineUpdate, fetchTasks, totalItems 
   } = useTasks(user, socket, isAdmin, can, setFeedback, activeProjectId, typeLabel);
 
-  // 5. UseEffects and Handlers (Safe to use fetchTasks now)
+  // ⭐ UPDATED: Fetch detailed usage including Bulk Upload permission
+  const fetchUsage = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await API.get('/company/usage');
+      if (data?.tasks) {
+        setUsage({
+          current: data.tasks.current,
+          max: data.tasks.limit, // mapped from 'limit' in controller
+          hasBulkUpload: data.hasBulkUpload // mapped from controller
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch usage limits", err);
+    }
+  }, [user]);
+
+  // Intercept success messages passed from the Form page
+  useEffect(() => {
+    if (location.state?.feedback) {
+      setFeedback(location.state.feedback);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      navigate(location.pathname, { replace: true, state: {} });
+      fetchUsage(); 
+      setTimeout(() => setFeedback({ type: '', message: '' }), 4000);
+    }
+  }, [location, navigate, fetchUsage]);
+
+  // 5. UseEffects and Handlers
   useEffect(() => {
     if (activeProjectId && typeof fetchTasks === 'function') {
       fetchTasks(currentPage, itemsPerPage);
+      fetchUsage(); 
     }
-  }, [currentPage, itemsPerPage, activeProjectId, fetchTasks]);
+  }, [currentPage, itemsPerPage, activeProjectId, fetchTasks, fetchUsage]);
 
   const openDeleteModal = (id) => {
     setTaskToDelete(id);
@@ -62,6 +98,7 @@ export default function TaskPage({ user, socket, activeProjectId }) {
   const notify = (type, message) => {
     setFeedback({ type, message });
     if (type === 'success') {
+      fetchUsage(); 
       setTimeout(() => setFeedback({ type: '', message: '' }), 5000);
     }
   };
@@ -71,13 +108,50 @@ export default function TaskPage({ user, socket, activeProjectId }) {
       await API.delete(`/tasks/${taskToDelete}`);
       setTasks(prev => prev.filter(t => t._id !== taskToDelete));
       setFeedback({ type: 'success', message: `${typeLabel} deleted successfully` });
+      fetchUsage(); 
     } catch (err) {
       setFeedback({ type: 'error', message: "Delete failed" });
     }
     setIsModalOpen(false);
   };
 
-  // 6. Local UI Logic (Uses tasks from the hook)
+  // ⭐ SUBSCRIPTION LOGIC
+  const isLimitReached = usage.max !== -1 && usage.current >= usage.max;
+
+  const handleCreateClick = () => {
+    if (isLimitReached) {
+      setFeedback({ 
+        type: 'error', 
+        message: `Plan Limit Reached: You have reached your limit of ${usage.max} tasks. Please upgrade your plan to add more.` 
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    navigate(`${basePath}/create`);
+  };
+
+  const handleBulkClick = () => {
+    // Check if feature is even enabled for this plan
+    if (!usage.hasBulkUpload) {
+      setFeedback({ 
+        type: 'error', 
+        message: "Feature Restricted: Your current plan does not include Bulk Import. Please upgrade to use this feature." 
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    // Check if limit is reached
+    if (isLimitReached) {
+      setFeedback({ 
+        type: 'error', 
+        message: `Plan Limit Reached: You cannot import more items. (Limit: ${usage.max})` 
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    setIsBulkOpen(true);
+  };
+
   const currentTableData = useMemo(() => {
     return (tasks || []).filter(task => 
       task.title.toLowerCase().includes(searchTerm.toLowerCase())
@@ -101,17 +175,42 @@ export default function TaskPage({ user, socket, activeProjectId }) {
     <div className="p-8 max-w-7xl mx-auto min-h-screen">
       <Declaration type={feedback.type} message={feedback.message} onClose={() => setFeedback({ type: '', message: '' })} />
 
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-2xl font-bold flex items-center gap-2">
-          <HeaderIcon className={isIssueMode ? "text-red-500" : "text-blue-600"} /> {typeLabel} Board
-        </h2>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <HeaderIcon className={isIssueMode ? "text-red-500" : "text-blue-600"} /> {typeLabel} Board
+          </h2>
+          
+          {/* ⭐ ENHANCED: Plan Usage Badge */}
+          {usage.max !== -1 && (
+            <div className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-colors ${isLimitReached ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-blue-50 text-blue-600 border-blue-200'}`}>
+              <ShieldAlert size={12} />
+              Plan Usage: {usage.current} / {usage.max} {typeLabel}s
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center gap-3">
           {can('tasks_create') && (
-            <button onClick={() => setIsBulkOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl font-bold">
-              <Upload size={18} /> Bulk Upload
+            <button 
+              onClick={handleBulkClick} 
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold transition-all shadow-sm active:scale-95 ${
+                !usage.hasBulkUpload 
+                  ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed' 
+                  : 'bg-green-600 text-white hover:bg-green-700'
+              }`}
+            >
+              {usage.hasBulkUpload ? <Upload size={18} /> : <ZapOff size={18} />}
+              Bulk Upload {!usage.hasBulkUpload && "(PRO)"}
             </button>
           )}
-          {can('tasks_create') && <CreateButton onClick={() => navigate(`${basePath}/create`)} label={`Add ${typeLabel}`} />}
+          {can('tasks_create') && (
+            <CreateButton 
+              onClick={handleCreateClick} 
+              label={`Add ${typeLabel}`} 
+              disabled={isLimitReached}
+            />
+          )}
         </div>
       </div>
 

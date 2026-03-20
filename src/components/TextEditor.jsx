@@ -85,7 +85,8 @@ export default function TextEditor({ value, onChange, onOverflow, readOnly }) {
             options: [9, 11, 12, 14, 16, 18, 20, 24, 30],
             supportAllValues: true
           },
-          width: '100%'
+          width: '100%',
+          height: '100%'
         }}
       />
     </div>

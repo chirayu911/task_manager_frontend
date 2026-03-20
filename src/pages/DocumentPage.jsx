@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { FileText, Loader, Download, Lock, MailCheck, Eye, EyeOff, Plus, Upload, Trash2, Edit } from 'lucide-react';
+import { FileText, Loader, Download, Lock, MailCheck, Eye, EyeOff, Plus, Upload, ShieldAlert } from 'lucide-react';
 import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
@@ -14,11 +14,15 @@ export default function DocumentPage({ user, activeProjectId }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [docToDelete, setDocToDelete] = useState(null);
   const [notification, setNotification] = useState(null);
   const [accessModal, setAccessModal] = useState({ isOpen: false, data: null });
+
+  // ⭐ NEW: Usage state for subscription limits
+  const [usage, setUsage] = useState(null);
 
   // 1. Path-based modal loader (Deep Linking)
   useEffect(() => {
@@ -41,6 +45,27 @@ export default function DocumentPage({ user, activeProjectId }) {
     }
   }, [urlRequestId, navigate]);
 
+  // ⭐ NEW: Fetch Company Usage for Limits
+  const fetchUsage = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data } = await API.get('/company/usage');
+      if (data?.documents) setUsage(data.documents);
+    } catch (err) {
+      console.error("Failed to fetch usage limits", err);
+    }
+  }, [user]);
+
+  // Intercept success messages passed from the Form page
+  useEffect(() => {
+    if (location.state?.feedback) {
+      setNotification(location.state.feedback);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      navigate(location.pathname, { replace: true, state: {} });
+      fetchUsage(); // Refresh usage after creation
+    }
+  }, [location, navigate, fetchUsage]);
+
   // 2. Data Fetching
   const fetchDocuments = useCallback(async () => {
     if (!activeProjectId) return;
@@ -57,7 +82,8 @@ export default function DocumentPage({ user, activeProjectId }) {
 
   useEffect(() => {
     if (user && activeProjectId) fetchDocuments();
-  }, [user, activeProjectId, fetchDocuments]);
+    if (user) fetchUsage(); // Fetch usage independently so badge shows even without active project
+  }, [user, activeProjectId, fetchDocuments, fetchUsage]);
 
   // 3. Handlers
   const handleGrantAccess = async (requestId) => {
@@ -105,31 +131,54 @@ export default function DocumentPage({ user, activeProjectId }) {
       setDocuments(prev => prev.filter(d => d._id !== docToDelete));
       setIsModalOpen(false);
       setNotification({ type: 'success', message: "Document removed." });
+      fetchUsage(); // Refresh usage after deletion
     } catch (err) {
       setIsModalOpen(false);
       setNotification({ type: 'error', message: "Error deleting." });
     }
   };
 
-  // ⭐ NEW: Handle PDF Preview & Download
+  // Handle PDF Preview & Download
   const handlePreviewPDF = async (docId) => {
     try {
       setNotification({ type: 'info', message: "Generating PDF..." });
       
-      // Fetch as a Blob to handle the binary PDF data correctly
       const response = await API.get(`/documents/${docId}/pdf`, { responseType: 'blob' });
-      
-      // Create a temporary local URL for the PDF
       const fileURL = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
-      
-      // Open in a new tab (Browsers natively show the PDF structure and provide a download button)
       window.open(fileURL, "_blank");
       
-      setNotification(null); // clear loading notification
+      setNotification(null); 
     } catch (err) {
       console.error(err);
       setNotification({ type: 'error', message: "Failed to generate PDF. Make sure it's a .DOC file." });
     }
+  };
+
+  // ⭐ NEW: Subscription Limit Handlers
+  const isLimitReached = usage && usage.max !== -1 && usage.current >= usage.max;
+
+  const handleCreateTextClick = () => {
+    if (isLimitReached) {
+      setNotification({ 
+        type: 'error', 
+        message: `Subscription Limit Reached: You have used ${usage.current} of ${usage.max} documents. Please upgrade your plan.` 
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    navigate("/documents/create/text");
+  };
+
+  const handleUploadClick = () => {
+    if (isLimitReached) {
+      setNotification({ 
+        type: 'error', 
+        message: `Subscription Limit Reached: You have used ${usage.current} of ${usage.max} documents. Please upgrade your plan.` 
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    navigate("/documents/create");
   };
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -166,25 +215,37 @@ export default function DocumentPage({ user, activeProjectId }) {
             <FileText className="text-primary-600" /> Project Documents
           </h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage project files and rich-text resources.</p>
+          
+          {/* ⭐ NEW: Usage Indicator Badge */}
+          {usage && usage.max !== -1 && (
+            <div className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${isLimitReached ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' : 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'}`}>
+              <ShieldAlert size={12} />
+              Plan Usage: {usage.current} / {usage.max} Documents
+            </div>
+          )}
         </div>
 
         <div className="flex gap-4">
           {can('documents_create') && (
-            <button
-              onClick={() => navigate("/documents/create/text")}
-              className="flex items-center gap-2.5 px-6 py-3.5 bg-green-600 text-white rounded-2xl font-black text-sm hover:bg-green-700 transition-all shadow-md shadow-green-200 dark:shadow-none animate-in fade-in zoom-in-95 duration-200 active:scale-95"
-            >
-              <Plus size={18} /> Create document
-            </button>
+            <div className={isLimitReached ? "opacity-70 cursor-not-allowed" : ""}>
+              <button
+                onClick={handleCreateTextClick}
+                className="flex items-center gap-2.5 px-6 py-3.5 bg-green-600 text-white rounded-2xl font-black text-sm hover:bg-green-700 transition-all shadow-md shadow-green-200 dark:shadow-none animate-in fade-in zoom-in-95 duration-200 active:scale-95"
+              >
+                <Plus size={18} /> Create document
+              </button>
+            </div>
           )}
 
           {can('documents_create') && (
-            <button
-              onClick={() => navigate("/documents/create")}
-              className="flex items-center gap-2.5 px-6 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none animate-in fade-in zoom-in-95 duration-200 active:scale-95"
-            >
-              <Upload  size={18} /> upload document
-            </button>
+            <div className={isLimitReached ? "opacity-70 cursor-not-allowed" : ""}>
+              <button
+                onClick={handleUploadClick}
+                className="flex items-center gap-2.5 px-6 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none animate-in fade-in zoom-in-95 duration-200 active:scale-95"
+              >
+                <Upload  size={18} /> upload document
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -194,8 +255,8 @@ export default function DocumentPage({ user, activeProjectId }) {
       </div>
 
       {!activeProjectId && !accessModal.isOpen ? (
-        <div className="bg-white dark:bg-gray-800 p-20 text-center rounded-2xl border border-dashed border-gray-300">
-          <p className="text-gray-400 italic">Please select a project to view specific documents.</p>
+        <div className="bg-white dark:bg-gray-800 p-20 text-center rounded-2xl border border-dashed border-gray-300 dark:border-gray-700">
+          <p className="text-gray-400 dark:text-gray-500 italic">Please select a project to view specific documents.</p>
         </div>
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all">
@@ -223,7 +284,7 @@ export default function DocumentPage({ user, activeProjectId }) {
                         <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">{doc.description}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase border">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300">
                           {doc.accessType === 'public' ? 'Public' : <><Lock size={10} /> Restricted</>}
                         </span>
                       </td>
@@ -238,7 +299,7 @@ export default function DocumentPage({ user, activeProjectId }) {
                             }
                           }}
                           disabled={!hasAccess}
-                          className="flex items-center gap-2 text-xs font-bold text-primary-600 hover:text-primary-700 disabled:text-gray-300 transition-colors"
+                          className="flex items-center gap-2 text-xs font-bold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 disabled:text-gray-300 dark:disabled:text-gray-600 transition-colors"
                         >
                           {hasAccess ? <><Eye size={16} /> Open Content</> : <><EyeOff size={16} /> Restricted</>}
                         </button>
@@ -250,24 +311,24 @@ export default function DocumentPage({ user, activeProjectId }) {
                             hasRequested ? (
                               <span className="text-[10px] font-bold text-orange-500 uppercase flex items-center gap-1"><MailCheck size={14} /> Pending</span>
                             ) : (
-                              <button onClick={() => handleRequestAccess(doc._id)} className="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-primary-600 transition-all flex items-center gap-1"><Lock size={12} /> Access</button>
+                              <button onClick={() => handleRequestAccess(doc._id)} className="px-3 py-1.5 bg-gray-900 dark:bg-gray-700 text-white rounded-lg text-xs font-bold hover:bg-primary-600 dark:hover:bg-primary-500 transition-all flex items-center gap-1"><Lock size={12} /> Access</button>
                             )
                           ) : (
                             <div className="flex items-center gap-2">
                               
                               {/* Standard File Download */}
                               {doc.type === 'file' && doc.fileUrl && (
-                                <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${doc.fileUrl.replace(/\\/g, '/')}`} target="_blank" rel="noopener noreferrer" download className="p-2 text-gray-400 hover:text-primary-600">
+                                <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${doc.fileUrl.replace(/\\/g, '/')}`} target="_blank" rel="noopener noreferrer" download className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
                                   <Download size={18} />
                                 </a>
                               )}
 
-                              {/* ⭐ NEW: PDF Preview/Download Button (Only for .DOC files) */}
+                              {/* PDF Preview/Download Button (Only for .DOC files) */}
                               {doc.type === 'text' && doc.fileType?.toUpperCase() === 'DOC' && (
                                 <button
                                   onClick={() => handlePreviewPDF(doc._id)}
                                   title="Preview & Download PDF"
-                                  className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-[11px] font-black uppercase tracking-wider transition-colors"
+                                  className="flex items-center gap-1 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg text-[11px] font-black uppercase tracking-wider transition-colors"
                                 >
                                   <FileText size={14} /> PDF
                                 </button>
