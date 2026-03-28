@@ -98,7 +98,7 @@ export default function LoginPage({ setUser, notify }) {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-2xl mb-4 shadow-inner">
              <ShieldCheck className="text-blue-600" size={32} />
           </div>
-          <h1 className="text-3xl font-black text-gray-800 tracking-tight">Task Manager</h1>
+          <h1 className="text-3xl font-black text-gray-800 tracking-tight">NOVA</h1>
           <p className="text-gray-400 mt-2 text-xs uppercase font-bold tracking-widest">Identify Yourself</p>
         </div>
 

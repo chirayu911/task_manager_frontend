@@ -142,12 +142,12 @@ export default function DocumentPage({ user, activeProjectId }) {
   const handlePreviewPDF = async (docId) => {
     try {
       setNotification({ type: 'info', message: "Generating PDF..." });
-      
+
       const response = await API.get(`/documents/${docId}/pdf`, { responseType: 'blob' });
       const fileURL = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       window.open(fileURL, "_blank");
-      
-      setNotification(null); 
+
+      setNotification(null);
     } catch (err) {
       console.error(err);
       setNotification({ type: 'error', message: "Failed to generate PDF. Make sure it's a .DOC file." });
@@ -159,9 +159,9 @@ export default function DocumentPage({ user, activeProjectId }) {
 
   const handleCreateTextClick = () => {
     if (isLimitReached) {
-      setNotification({ 
-        type: 'error', 
-        message: `Subscription Limit Reached: You have used ${usage.current} of ${usage.max} documents. Please upgrade your plan.` 
+      setNotification({
+        type: 'error',
+        message: `Subscription Limit Reached: You have used ${usage.current} of ${usage.max} documents. Please upgrade your plan.`
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -171,9 +171,9 @@ export default function DocumentPage({ user, activeProjectId }) {
 
   const handleUploadClick = () => {
     if (isLimitReached) {
-      setNotification({ 
-        type: 'error', 
-        message: `Subscription Limit Reached: You have used ${usage.current} of ${usage.max} documents. Please upgrade your plan.` 
+      setNotification({
+        type: 'error',
+        message: `Subscription Limit Reached: You have used ${usage.current} of ${usage.max} documents. Please upgrade your plan.`
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -215,7 +215,7 @@ export default function DocumentPage({ user, activeProjectId }) {
             <FileText className="text-primary-600" /> Project Documents
           </h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage project files and rich-text resources.</p>
-          
+
           {/* ⭐ NEW: Usage Indicator Badge */}
           {usage && usage.max !== -1 && (
             <div className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${isLimitReached ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800' : 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800'}`}>
@@ -243,7 +243,7 @@ export default function DocumentPage({ user, activeProjectId }) {
                 onClick={handleUploadClick}
                 className="flex items-center gap-2.5 px-6 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none animate-in fade-in zoom-in-95 duration-200 active:scale-95"
               >
-                <Upload  size={18} /> upload document
+                <Upload size={18} /> upload document
               </button>
             </div>
           )}
@@ -315,11 +315,18 @@ export default function DocumentPage({ user, activeProjectId }) {
                             )
                           ) : (
                             <div className="flex items-center gap-2">
-                              
+
                               {/* Standard File Download */}
                               {doc.type === 'file' && doc.fileUrl && (
-                                <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${doc.fileUrl.replace(/\\/g, '/')}`} target="_blank" rel="noopener noreferrer" download className="p-2 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
-                                  <Download size={18} />
+                                <a
+                                  href={`https://fm8bp5cj-5000.inc1.devtunnels.ms/${doc.fileUrl}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download
+                                  className="p-2 bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400 rounded-lg hover:bg-primary-200 dark:hover:bg-primary-800 transition-colors"
+                                  title="Download Document"
+                                >
+                                  <Download size={20} />
                                 </a>
                               )}
 

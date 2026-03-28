@@ -163,10 +163,10 @@ export default function AdminStaffCRUD({ user, socket }) {
                 </td>
                 <td className="px-6 py-4">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border 
-                    ${(staffMember.role?.name || staffMember.role) === 'admin'
+                    ${(user.role?.name || staffMember.role) === 'admin'
                       ? 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/30'
                       : 'bg-primary-50 text-primary-700 border-primary-100 dark:bg-primary-900/30'}`}>
-                    {staffMember.role?.name || staffMember.role || "No Role"}
+                    {user.role?.name || staffMember.role || "No Role"}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right">

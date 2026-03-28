@@ -141,7 +141,7 @@ export default function CompanyRegistrationPage() {
 
                 <div className="text-center mb-10 relative">
                     <Link
-                        to="/login"
+                        to="/"
                         className="absolute left-0 top-2 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all flex items-center gap-2 text-sm font-bold"
                     >
                         <ArrowLeft size={18} />

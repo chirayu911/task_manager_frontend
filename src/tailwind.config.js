@@ -1,26 +1,25 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
-  darkMode: 'selector', // ⭐ Changed from 'class' to 'selector' for modern Tailwind versions!
+  darkMode: 'selector', // ⭐ Modern Tailwind dark mode configuration
   theme: {
     extend: {
       colors: {
         primary: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6', 
-          600: '#2563eb', 
-          700: '#1d4ed8', 
-          800: '#1e40af',
-          900: '#1e3a8a',
-          950: '#172554',
+          50: '#fef2f2',
+          100: '#fee2e2',
+          200: '#450a0a',
+          300: '#450a0a',
+          400: '#f87171',
+          500: '#ef4444', // Main base red
+          600: '#dc2626', // High-contrast primary action
+          700: '#b91c1c', 
+          800: '#991b1b',
+          900: '#7f1d1d',
+          950: '#450a0a', // Ultra-dark background tint
         }
       }
     },

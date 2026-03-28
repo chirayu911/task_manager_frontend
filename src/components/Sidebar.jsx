@@ -15,15 +15,25 @@ import {
   Briefcase,
   CreditCard,
   FileText,
+  MonitorPlay,
   Building2 // ⭐ Added for Company branding
 } from "lucide-react";
 import ConfirmModal from "./ConfirmModal";
+import EditProfileModal from "./EditProfileModal";
 
 export default function Sidebar({ user, handleLogout }) {
   const location = useLocation();
 
+  const getProfilePicUrl = (path) => {
+    if (!path) return '';
+    const baseUrl = (process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/api\/?$/, '');
+    const cleanPath = path.replace(/\\/g, '/').replace(/^\//, '');
+    return `${baseUrl}/${cleanPath}`;
+  };
+
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   const [isProjectsOpen, setIsProjectsOpen] = useState(() => {
     const projectPaths = ["/projects", "/tasks", "/issues", "/team", "/admin/task-status", "/documents"];
@@ -44,7 +54,7 @@ export default function Sidebar({ user, handleLogout }) {
     if (user.companyName) return user.companyName;
 
     // Fallback 2: Default branding
-    return "Task Manager";
+    return "NOVA";
   }, [user]);
 
   const roleName = useMemo(() =>
@@ -118,6 +128,12 @@ export default function Sidebar({ user, handleLogout }) {
       icon: <Building2 size={20} />,
       // ⭐ Only visible to Admin or Company Owner
       allowed: isAdmin || user?.isCompanyOwner,
+    },
+    {
+      name: "Manage Website",
+      path: "/admin/manage-website",
+      icon: <MonitorPlay size={20} />,
+      allowed: isAdmin && !user?.isCompanyOwner, // Only admins should see this
     },
   ];
 
@@ -212,8 +228,12 @@ export default function Sidebar({ user, handleLogout }) {
             <div className="absolute bottom-full left-0 w-full p-4 pb-2 z-50">
               <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-5 transform transition-all">
                 <div className="flex flex-col items-center mb-4">
-                  <div className="w-16 h-16 bg-gradient-to-tr from-primary-600 to-indigo-500 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-inner mb-3">
-                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                  <div className="w-16 h-16 bg-gradient-to-tr from-primary-600 to-indigo-500 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-inner mb-3 overflow-hidden">
+                    {user?.profilePicture ? (
+                      <img src={getProfilePicUrl(user.profilePicture)} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      user?.name?.charAt(0).toUpperCase() || 'U'
+                    )}
                   </div>
                   <h3 className="text-gray-900 dark:text-white font-bold text-lg leading-tight">{user?.name}</h3>
                   <p className="text-primary-500 dark:text-primary-400 text-xs font-bold">@{user?.username || 'user'}</p>
@@ -232,6 +252,12 @@ export default function Sidebar({ user, handleLogout }) {
                       {user?.isCompanyOwner ? "Owner" : roleName}
                     </span>
                   </div>
+                  <button
+                    onClick={() => { setIsProfileOpen(false); setIsEditProfileOpen(true); }}
+                    className="w-full mt-4 flex items-center justify-center py-2 bg-gray-100/70 hover:bg-gray-200 dark:bg-gray-800 hover:dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold transition-all border border-gray-200 dark:border-gray-700"
+                  >
+                    Edit Profile
+                  </button>
                 </div>
               </div>
             </div>
@@ -242,8 +268,12 @@ export default function Sidebar({ user, handleLogout }) {
             className="flex items-center justify-between w-full p-2 mb-3 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-xl transition-colors group cursor-pointer"
           >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-sm">
-                {user?.name?.charAt(0).toUpperCase() || 'U'}
+              <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
+                {user?.profilePicture ? (
+                  <img src={getProfilePicUrl(user.profilePicture)} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  user?.name?.charAt(0).toUpperCase() || 'U'
+                )}
               </div>
               <div className="text-left">
                 <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate w-28 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
@@ -275,6 +305,12 @@ export default function Sidebar({ user, handleLogout }) {
         title="Sign Out"
         message="Are you sure you want to sign out of your organization?"
         confirmText="Yes, Sign Out"
+      />
+      
+      <EditProfileModal 
+        isOpen={isEditProfileOpen}
+        onClose={() => setIsEditProfileOpen(false)}
+        user={user}
       />
     </>
   );

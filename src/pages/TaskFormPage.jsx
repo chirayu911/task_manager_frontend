@@ -643,9 +643,9 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
               {existingImages.map((url, i) => (
                 <div key={`ei-${i}`} className="group relative aspect-square rounded-2xl overflow-hidden shadow-md">
-                   <img src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${url}`} className="w-full h-full object-cover" alt=""/>
+                   <img src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${url}`} className="w-full h-full object-cover" alt=""/>
                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <button type="button" onClick={() => setSelectedMedia({url: `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${url}`, type: 'image'})} className="p-2 text-white"><Maximize2 size={18}/></button>
+                      <button type="button" onClick={() => setSelectedMedia({url: `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${url}`, type: 'image'})} className="p-2 text-white"><Maximize2 size={18}/></button>
                       {!isViewMode && <button type="button" onClick={() => setExistingImages(prev => prev.filter((_, idx) => idx !== i))} className="p-2 text-red-400 hover:text-red-500"><Trash2 size={18}/></button>}
                    </div>
                 </div>
@@ -682,9 +682,9 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
               {existingVideos.map((path, i) => (
                 <div key={`ev-${i}`} className="group relative h-48 rounded-3xl overflow-hidden bg-black shadow-xl">
-                  <video src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${path}`} className="w-full h-full object-cover opacity-70" />
+                  <video src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${path}`} className="w-full h-full object-cover opacity-70" />
                   <div className="absolute top-2 right-2 flex gap-2">
-                    <button type="button" onClick={() => setSelectedMedia({url: `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${path}`, type: 'video'})} className="bg-white/20 p-2 rounded-lg backdrop-blur-md hover:bg-white/40 transition-colors"><Maximize2 size={16}/></button>
+                    <button type="button" onClick={() => setSelectedMedia({url: `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${path}`, type: 'video'})} className="bg-white/20 p-2 rounded-lg backdrop-blur-md hover:bg-white/40 transition-colors"><Maximize2 size={16}/></button>
                     {!isViewMode && (
                       <button type="button" onClick={() => setExistingVideos(prev => prev.filter((_, idx) => idx !== i))} className="bg-red-500 p-2 rounded-lg text-white hover:bg-red-600 transition-colors"><Trash2 size={16}/></button>
                     )}

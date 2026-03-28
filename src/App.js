@@ -27,12 +27,14 @@ import SubscriptionPage from './pages/SubscriptionPage';
 import SubscriptionFormPage from './pages/SubscriptionFormPage';
 import DocumentPage from './pages/DocumentPage';
 import DocumentFormPage from './pages/DocumentFormPage';
-import CreateTextDocument from "./pages/CreateDocument";
+import CreateDocument from "./pages/CreateDocument";
 import CompanyRegistrationPage from "./pages/CompanyRegistrationPage"; 
 import CompanyProfilePage from "./pages/CompanyProfilePage";
 import CompanySettingsPage from './pages/CompanySettingsPage';
 import SubscriptionSelectionPage from './pages/SubscriptionSelectionPage'; // Assumed from previous step
 import ActivityLogPage from './pages/ActivityLogPage'; // Bonus: Activity Log Page
+import LandingPage from "./pages/LandingPage";
+import ManageWebsitePage from "./pages/ManageWebsitePage";
 
 // Components
 import MainLayout from "./components/MainLayout";
@@ -90,7 +92,7 @@ export default function App() {
   useEffect(() => {
     const checkLoggedIn = async () => {
       try {
-        const { data } = await API.get("/auth/me");
+        const { data } = await API.get(`/auth/me?t=${new Date().getTime()}`);
         setUser(data);
       } catch (error) {
         setUser(null);
@@ -151,7 +153,7 @@ export default function App() {
 
   const refreshUser = async () => {
     try {
-      const { data } = await API.get("/auth/me");
+      const { data } = await API.get(`/auth/me?t=${new Date().getTime()}`);
       setUser(data);
     } catch (error) {
       console.error("Failed to refresh user data");
@@ -208,7 +210,7 @@ export default function App() {
 
       <Routes>
         {/* PUBLIC ROUTES */}
-        {["/", "/login"].map((path) => (
+        {["/login"].map((path) => (
           <Route
             key={path}
             path={path}
@@ -232,10 +234,11 @@ export default function App() {
         ))}
 
         {/* REGISTRATION & ONBOARDING */}
-        <Route path="/register" element={!user ? <CompanyRegistrationPage /> : <Navigate to="/" replace />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/register" element={!user ? <CompanyRegistrationPage /> : <Navigate to="/login" replace />} />
         <Route path="/choose-plan" element={user ? <SubscriptionSelectionPage /> : <Navigate to="/login" replace />} />
-        <Route path="/forgot-password" element={!user ? <ForgotPasswordPage /> : <Navigate to="/" replace />} />
-        <Route path="/reset-password/:token" element={!user ? <ResetPasswordPage /> : <Navigate to="/" replace />} />
+        <Route path="/forgot-password" element={!user ? <ForgotPasswordPage /> : <Navigate to="/login" replace />} />
+        <Route path="/reset-password/:token" element={!user ? <ResetPasswordPage /> : <Navigate to="/login" replace />} />
 
         {/* PROTECTED ROUTES */}
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
@@ -244,6 +247,7 @@ export default function App() {
 
         <Route path="/admin/company" element={<ProtectedRoute> <CompanyProfilePage /> </ProtectedRoute>} />
         <Route path="/admin/company-settings" element={<ProtectedRoute><CompanySettingsPage user={user} /> </ProtectedRoute>} />
+        <Route path="/admin/manage-website" element={<ProtectedRoute requiredPermission="roles_update"><ManageWebsitePage /></ProtectedRoute>} />
         <Route path="/tasks" element={<ProtectedRoute requiredPermission="tasks_read"><TaskPage user={user} socket={socket} activeProjectId={activeProjectId} /></ProtectedRoute>} />
         <Route path="/team" element={<ProtectedRoute requiredPermission="projects_read"><TeamPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
 
@@ -282,9 +286,9 @@ export default function App() {
 
         <Route path="/documents" element={<ProtectedRoute requiredPermission="projects_read"><DocumentPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
         <Route path="/documents/create" element={<ProtectedRoute requiredPermission="documents_create"><DocumentFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
-        <Route path="/documents/create/text" element={<ProtectedRoute requiredPermission="documents_create"><CreateTextDocument user={user} activeProjectId={activeProjectId} notify={notify} refreshUser={refreshUser} /></ProtectedRoute>} />
+        <Route path="/documents/create/text" element={<ProtectedRoute requiredPermission="documents_create"><CreateDocument user={user} activeProjectId={activeProjectId} notify={notify} refreshUser={refreshUser} /></ProtectedRoute>} />
         <Route path="/documents/edit/:id" element={<ProtectedRoute requiredPermission="documents_update"><DocumentFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
-        <Route path="/documents/edit/text/:id" element={<ProtectedRoute requiredPermission="documents_update"><CreateTextDocument user={user} activeProjectId={activeProjectId} notify={notify} refreshUser={refreshUser} /></ProtectedRoute>} />
+        <Route path="/documents/edit/text/:id" element={<ProtectedRoute requiredPermission="documents_update"><CreateDocument user={user} activeProjectId={activeProjectId} notify={notify} refreshUser={refreshUser} /></ProtectedRoute>} />
         <Route path="/documents/view/:id" element={<ProtectedRoute requiredPermission="projects_read"><DocumentFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
 
         <Route
