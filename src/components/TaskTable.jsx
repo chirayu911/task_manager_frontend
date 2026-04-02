@@ -2,7 +2,13 @@ import React from 'react';
 import { User as UserIcon, FileText } from 'lucide-react';
 import { EditButton, DeleteButton } from './TableButtons';
 
-export default function TaskTable({ 
+// Helper: Formats a JS Date to YYYY-MM-DDTHH:mm for datetime-local inputs
+const toLocalISO = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+};export default function TaskTable({ 
   currentTableData, 
   user, 
   isAdmin, 
@@ -22,6 +28,7 @@ export default function TaskTable({
           <th className="px-6 py-4">Details</th>
           <th className="px-6 py-4">Assigned To</th>
           <th className="px-6 py-4">Status</th>
+          <th className="px-6 py-4">Schedule</th>
           <th className="px-6 py-4 text-right">Actions</th>
         </tr>
       </thead>
@@ -73,6 +80,44 @@ export default function TaskTable({
                 </select>
               </td>
 
+              <td className="px-6 py-4 text-xs font-medium text-gray-500 whitespace-nowrap">
+                {isAdmin || can('tasks_update') ? (
+                  <div className="flex flex-col gap-1.5 w-36">
+                    <input 
+                      type="datetime-local" 
+                      value={toLocalISO(item.startDate)}
+                      onChange={(e) => handleInlineUpdate(item._id, 'startDate', e.target.value)}
+                      className="border border-gray-200 p-1.5 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-blue-500/20 w-full"
+                      title="Start Date & Time"
+                    />
+                    <div className="flex items-center gap-2">
+                       <input 
+                         type="number" 
+                         min="0.5" 
+                         step="0.5"
+                         placeholder="Hrs"
+                         value={item.hours || ''}
+                         onChange={(e) => handleInlineUpdate(item._id, 'hours', e.target.value)}
+                         className="border border-gray-200 p-1.5 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-blue-500/20 w-20"
+                         title="Estimated Hours"
+                       />
+                       <span className="text-[10px] uppercase font-bold text-gray-400">hours</span>
+                    </div>
+                  </div>
+                ) : (
+                  item.startDate ? (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-gray-900 font-bold">
+                        {new Date(item.startDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                      <span>{item.hours || 0} hrs est.</span>
+                    </div>
+                  ) : (
+                    <span className="italic text-gray-400 border border-dashed border-gray-200 px-2 py-1 rounded-md">Not planned</span>
+                  )
+                )}
+              </td>
+
               <td className="px-6 py-4 text-right">
                 <div className="flex justify-end gap-1">
                   {/* ⭐ Dynamic "Edit" Path */}
@@ -88,7 +133,7 @@ export default function TaskTable({
           ))
         ) : (
           <tr>
-            <td colSpan="5" className="px-6 py-12 text-center text-gray-400">
+            <td colSpan="6" className="px-6 py-12 text-center text-gray-400">
               No records found.
             </td>
           </tr>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Flex, Box, Select, Button, IconButton, useColorModeValue } from '@chakra-ui/react';
 
 export default function TableControls({ 
   currentPage, 
@@ -9,6 +10,12 @@ export default function TableControls({
   onLimitChange 
 }) {
   const totalPages = Math.ceil(totalItems / itemsPerPage);
+  
+  const bg = useColorModeValue('gray.50', 'gray.900');
+  const borderColor = useColorModeValue('gray.100', 'gray.800');
+  const textColor = useColorModeValue('gray.500', 'gray.400');
+  const selectBg = useColorModeValue('white', 'gray.800');
+  
   if (totalItems === 0) return null;
 
   const handlePageClick = (page) => {
@@ -17,18 +24,16 @@ export default function TableControls({
 
   const renderPageNumbers = () => {
     const pageNumbers = [];
-    const showMax = 3; // Window size around current page
+
+    let start = Math.max(2, currentPage - 1);
+    let end = Math.min(totalPages - 1, currentPage + 1);
 
     // Always show Page 1
     pageNumbers.push(renderButton(1));
 
-    // Calculate start and end of the middle window
-    let start = Math.max(2, currentPage - 1);
-    let end = Math.min(totalPages - 1, currentPage + 1);
-
     // Add ellipsis after Page 1 if there's a gap
     if (start > 2) {
-      pageNumbers.push(<span key="dots-start" className="px-1 text-gray-400">...</span>);
+      pageNumbers.push(<Box key="dots-start" px={1} color={textColor}>...</Box>);
     }
 
     // Render the window (Previous, Current, Next)
@@ -38,7 +43,7 @@ export default function TableControls({
 
     // Add ellipsis before Last Page if there's a gap
     if (end < totalPages - 1) {
-      pageNumbers.push(<span key="dots-end" className="px-1 text-gray-400">...</span>);
+      pageNumbers.push(<Box key="dots-end" px={1} color={textColor}>...</Box>);
     }
 
     // Always show Last Page (if it's not Page 1)
@@ -50,57 +55,67 @@ export default function TableControls({
   };
 
   const renderButton = (num) => (
-    <button
+    <Button
       key={num}
-      type="button"
       onClick={() => handlePageClick(num)}
-      className={`w-8 h-8 rounded-lg text-sm font-bold transition-all ${
-        currentPage === num 
-          ? 'bg-blue-600 text-white shadow-md' 
-          : 'text-gray-500 hover:bg-gray-100'
-      }`}
+      size="sm"
+      minW={8} h={8} p={0}
+      rounded="lg"
+      fontWeight="bold"
+      colorScheme={currentPage === num ? 'brand' : 'gray'}
+      variant={currentPage === num ? 'solid' : 'ghost'}
+      shadow={currentPage === num ? 'sm' : 'none'}
     >
       {num}
-    </button>
+    </Button>
   );
 
   return (
-    <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-        <span>Show</span>
-        <select 
+    <Flex 
+      px={6} py={4} bg={bg} borderTop="1px solid" borderColor={borderColor}
+      direction={{ base: 'column', sm: 'row' }} align="center" justify="space-between" gap={4}
+    >
+      <Flex align="center" gap={2} fontSize="sm" color={textColor} fontWeight="medium">
+        <Box as="span">Show</Box>
+        <Select 
           value={itemsPerPage}
           onChange={(e) => onLimitChange(Number(e.target.value))}
-          className="border border-gray-200 rounded-lg px-2 py-1 bg-white outline-none focus:ring-2 focus:ring-blue-500/20"
+          size="sm"
+          w="fit-content"
+          rounded="lg"
+          focusBorderColor="brand.500"
+          bg={selectBg}
         >
           {[5, 10, 20, 50].map(num => <option key={num} value={num}>{num}</option>)}
-        </select>
-        <span>entries</span>
-      </div>
+        </Select>
+        <Box as="span">entries</Box>
+      </Flex>
 
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
+      <Flex align="center" gap={2}>
+        <IconButton
+          icon={<ChevronLeft size={16} />}
           onClick={() => handlePageClick(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        >
-          <ChevronLeft size={16} />
-        </button>
+          isDisabled={currentPage === 1}
+          size="sm"
+          rounded="lg"
+          variant="outline"
+          aria-label="Previous Page"
+        />
         
-        <div className="flex items-center gap-1">
+        <Flex align="center" gap={1}>
           {renderPageNumbers()}
-        </div>
+        </Flex>
 
-        <button
-          type="button"
+        <IconButton
+          icon={<ChevronRight size={16} />}
           onClick={() => handlePageClick(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="p-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-        >
-          <ChevronRight size={16} />
-        </button>
-      </div>
-    </div>
+          isDisabled={currentPage === totalPages}
+          size="sm"
+          rounded="lg"
+          variant="outline"
+          aria-label="Next Page"
+        />
+      </Flex>
+    </Flex>
   );
 }

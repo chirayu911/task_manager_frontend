@@ -1,32 +1,19 @@
-import React, { useState, useRef, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ChevronDown, FolderKanban, Building2, Bell } from 'lucide-react';
 import { 
-  ChevronDown, 
-  FolderKanban,  
-  Building2, 
-  Bell // ⭐ Added Bell Icon
-} from 'lucide-react';
+  Flex, Box, Menu, MenuButton, MenuList, MenuItem, 
+  Button, IconButton, Text, useColorModeValue 
+} from '@chakra-ui/react';
 import API from '../api';
-// import { ThemeContext } from '../context/ThemeContext';
 
 export default function Navbar({ 
-  user, 
-  activeProjectId, 
-  setActiveProjectId, 
-  activeCompanyId, 
-  setActiveCompanyId 
+  user, activeProjectId, setActiveProjectId, activeCompanyId, setActiveCompanyId 
 }) {
   const navigate = useNavigate();
-  const [isProjectsOpen, setIsProjectsOpen] = useState(false);
-  const [isCompaniesOpen, setIsCompaniesOpen] = useState(false); 
   const [projectList, setProjectList] = useState([]);
   const [companyList, setCompanyList] = useState([]);
   
-  const projectsRef = useRef(null);
-  const companiesRef = useRef(null); 
-  
-  // const { isDarkMode, toggleTheme } = useContext(ThemeContext);
-
   const roleName = typeof user?.role === 'object' ? user.role?.name : user?.role;
   const isSystemAdmin = roleName === 'admin' || roleName === 'superadmin';
 
@@ -34,7 +21,6 @@ export default function Navbar({
     try {
       const { data } = await API.get('/projects');
       setProjectList(data || []);
-      
       if (!activeProjectId && data && data.length > 0) {
         setActiveProjectId(data[0]._id);
       }
@@ -48,10 +34,7 @@ export default function Navbar({
     try {
       const { data } = await API.get('/company/all');
       setCompanyList(data || []);
-      
-      if (!activeCompanyId) {
-        setActiveCompanyId('all'); 
-      }
+      if (!activeCompanyId) setActiveCompanyId('all'); 
     } catch (err) {
       console.error("Navbar: Failed to load companies", err);
     }
@@ -64,151 +47,165 @@ export default function Navbar({
     }
   }, [user, fetchProjects, fetchCompanies, isSystemAdmin]);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (projectsRef.current && !projectsRef.current.contains(event.target)) {
-        setIsProjectsOpen(false);
-      }
-      if (companiesRef.current && !companiesRef.current.contains(event.target)) {
-        setIsCompaniesOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   const activeProject = projectList.find(p => p._id === activeProjectId);
   const activeCompany = companyList.find(c => c._id === activeCompanyId);
 
+  // Theme-aware colors
+  const bg = useColorModeValue('white', 'gray.900');
+  const border = useColorModeValue('gray.200', 'gray.700');
+  const hoverBg = useColorModeValue('brand.50', 'whiteAlpha.100');
+  const hoverIconColor = useColorModeValue('brand.600', 'brand.300');
+  const adminIconBg = useColorModeValue('purple.50', 'purple.900');
+  const projectIconBg = useColorModeValue('brand.50', 'brand.900');
+  const adminMenuBgActive = useColorModeValue('purple.50', 'whiteAlpha.100');
+  const adminMenuColorActive = useColorModeValue('purple.500', 'purple.300');
+  const adminMenuHoverBg = useColorModeValue('purple.50', 'whiteAlpha.100');
+  const adminMenuHoverColor = useColorModeValue('purple.600', 'purple.300');
+
   return (
-    <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 fixed top-0 left-64 w-[calc(100%-16rem)] z-[100] h-16 shadow-sm transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-end gap-3">
+    <Flex 
+      as="nav" 
+      position="fixed" top="0" left="64" w="calc(100% - 16rem)" h="16" zIndex="100"
+      bg={bg} borderBottom="1px solid" borderColor={border} 
+      align="center" justify="flex-end" px="6" gap="4"
+      boxShadow="sm" transition="all 0.3s ease-in-out"
+    >
+      <Box h="8" w="1px" bg={border} mx="2" />
 
-        <div className="h-8 w-px bg-gray-100 dark:bg-gray-800 mx-1"></div>
-
-        {/* SYSTEM ADMIN ONLY: Company Selector */}
-        {isSystemAdmin && (
-          <div className="relative" ref={companiesRef}>
-            <button 
-              onClick={() => setIsCompaniesOpen(!isCompaniesOpen)}
-              className={`flex items-center gap-3 p-2 rounded-xl transition-all border border-transparent hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                isCompaniesOpen ? 'text-primary-600 dark:text-primary-400 bg-gray-50 dark:bg-gray-800' : 'text-gray-600 dark:text-gray-300'
-              }`}
-            >
-              <div className="w-8 h-8 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg flex items-center justify-center shadow-sm transition-colors">
-                <Building2 size={18} />
-              </div>
-              <div className="hidden sm:block text-left">
-                <span className="text-sm font-bold block leading-none">
-                  {activeCompanyId === 'all' ? 'All Companies' : (activeCompany ? activeCompany.companyName : 'Select Company')}
-                </span>
-              </div>
-              <ChevronDown size={16} className={`transition-transform duration-200 ${isCompaniesOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {isCompaniesOpen && (
-              <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl py-2 animate-in fade-in zoom-in duration-150 z-[110] transition-colors">
-                <div className="px-4 py-3 border-b border-gray-50 dark:border-gray-700 mb-1">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Available Organizations</span>
-                </div>
-                
-                <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                  <button
-                    className={`w-full text-left block px-4 py-3 hover:bg-purple-50 dark:hover:bg-gray-700 transition-colors group border-l-4 ${
-                      activeCompanyId === 'all' ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-400' : 'border-transparent hover:border-purple-600'
-                    }`}
-                    onClick={() => {
-                      setActiveCompanyId('all');
-                      setIsCompaniesOpen(false);
-                    }}
-                  >
-                    <p className={`text-sm font-bold truncate transition-colors ${activeCompanyId === 'all' ? 'text-purple-700 dark:text-purple-300' : 'text-gray-800 dark:text-gray-200'}`}>
-                      Global (All Companies)
-                    </p>
-                  </button>
-
-                  {companyList.map((company) => (
-                    <button
-                      key={company._id}
-                      className={`w-full text-left block px-4 py-3 hover:bg-purple-50 dark:hover:bg-gray-700 transition-colors group border-l-4 ${
-                        activeCompanyId === company._id ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-400' : 'border-transparent hover:border-purple-600'
-                      }`}
-                      onClick={() => {
-                        setActiveCompanyId(company._id);
-                        setIsCompaniesOpen(false);
-                      }}
-                    >
-                      <p className={`text-sm font-bold truncate transition-colors ${activeCompanyId === company._id ? 'text-purple-700 dark:text-purple-300' : 'text-gray-800 dark:text-gray-200'}`}>
-                        {company.companyName}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Project Selector */}
-        <div className="relative" ref={projectsRef}>
-          <button 
-            onClick={() => setIsProjectsOpen(!isProjectsOpen)}
-            className={`flex items-center gap-3 p-2 rounded-xl transition-all border border-transparent hover:bg-gray-50 dark:hover:bg-gray-800 ${
-              isProjectsOpen ? 'text-primary-600 dark:text-primary-400 bg-gray-50 dark:bg-gray-800' : 'text-gray-600 dark:text-gray-300'
-            }`}
+      {/* SYSTEM ADMIN ONLY: Company Selector */}
+      {isSystemAdmin && (
+        <Menu autoSelect={false}>
+          <MenuButton 
+            as={Button} variant="ghost" pl="2" pr="4" py="6" rounded="xl"
+            _hover={{ bg: hoverBg, color: hoverIconColor, transform: 'translateY(-2px)' }}
+            transition="all 0.2s"
           >
-            <div className="w-8 h-8 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 rounded-lg flex items-center justify-center shadow-sm transition-colors">
-              <FolderKanban size={18} />
-            </div>
-            <div className="hidden sm:block text-left">
-              <span className="text-sm font-bold block leading-none">{activeProject ? activeProject.title : 'Select Project'}</span>
-              {activeProject && <span className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Active Project</span>}
-            </div>
-            <ChevronDown size={16} className={`transition-transform duration-200 ${isProjectsOpen ? 'rotate-180' : ''}`} />
-          </button>
+            <Flex align="center" gap="3">
+              <Flex w="8" h="8" bg={adminIconBg} color="purple.500" rounded="lg" align="center" justify="center">
+                <Building2 size={18} />
+              </Flex>
+              <Box textAlign="left" display={{ base: "none", sm: "block" }}>
+                <Text fontSize="sm" fontWeight="bold" lineHeight="none">
+                  {activeCompanyId === 'all' ? 'All Companies' : (activeCompany ? activeCompany.companyName : 'Select Company')}
+                </Text>
+              </Box>
+              <ChevronDown size={16} />
+            </Flex>
+          </MenuButton>
+          
+          <MenuList 
+            minW="280px" rounded="2xl" shadow="2xl" border="1px" borderColor={border} p="2"
+            animation="slideInBottom 0.2s ease-out"
+          >
+            <Box px="4" py="2" borderBottom="1px" borderColor={border} mb="2">
+              <Text fontSize="10px" fontWeight="black" color="gray.400" textTransform="uppercase" letterSpacing="widest">
+                Available Organizations
+              </Text>
+            </Box>
+            
+            <MenuItem 
+              onClick={() => setActiveCompanyId('all')} 
+              rounded="xl" py="3" px="4" mb="1"
+              bg={activeCompanyId === 'all' ? adminMenuBgActive : 'transparent'}
+              color={activeCompanyId === 'all' ? adminMenuColorActive : 'inherit'}
+              _hover={{ bg: adminMenuHoverBg, color: adminMenuHoverColor, transform: 'translateX(4px)' }}
+              transition="all 0.2s" fontWeight="bold"
+            >
+              Global (All Companies)
+            </MenuItem>
+            
+            {companyList.map((company) => (
+              <MenuItem 
+                key={company._id}
+                onClick={() => setActiveCompanyId(company._id)} 
+                rounded="xl" py="3" px="4" mb="1"
+                bg={activeCompanyId === company._id ? adminMenuBgActive : 'transparent'}
+                color={activeCompanyId === company._id ? adminMenuColorActive : 'inherit'}
+                _hover={{ bg: adminMenuHoverBg, color: adminMenuHoverColor, transform: 'translateX(4px)' }}
+                transition="all 0.2s" fontWeight="bold"
+              >
+                {company.companyName}
+              </MenuItem>
+            ))}
+          </MenuList>
+        </Menu>
+      )}
 
-          {isProjectsOpen && (
-            <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-2xl py-2 animate-in fade-in zoom-in duration-150 z-[110] transition-colors">
-              <div className="px-4 py-3 border-b border-gray-50 dark:border-gray-700 mb-1 flex justify-between items-center">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Available Projects</span>
-                <Link to="/projects" onClick={() => setIsProjectsOpen(false)} className="text-[10px] text-primary-600 font-bold hover:underline">Manage All</Link>
-              </div>
-              
-              <div className="max-h-80 overflow-y-auto custom-scrollbar">
-                {projectList.length > 0 ? (
-                  projectList.map((project) => (
-                    <button
-                      key={project._id}
-                      className={`w-full text-left block px-4 py-3 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors group border-l-4 ${
-                        activeProjectId === project._id ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20 dark:border-primary-400' : 'border-transparent hover:border-primary-600'
-                      }`}
-                      onClick={() => {
-                        setActiveProjectId(project._id);
-                        setIsProjectsOpen(false);
-                      }}
-                    >
-                      <p className={`text-sm font-bold truncate transition-colors ${activeProjectId === project._id ? 'text-primary-700 dark:text-primary-300' : 'text-gray-800 dark:text-gray-200'}`}>
-                        {project.title}
-                      </p>
-                    </button>
-                  ))
-                ) : (
-                  <div className="px-4 py-8 text-center text-xs text-gray-400 italic">No active projects</div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-                <button 
-          onClick={() => navigate('/activity')}
-          className="relative p-2.5 rounded-xl text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400 transition-all active:scale-95 group"
-          title="Activity Log"
+      {/* Project Selector */}
+      <Menu autoSelect={false}>
+        <MenuButton 
+          as={Button} variant="ghost" pl="2" pr="4" py="6" rounded="xl"
+          _hover={{ bg: hoverBg, color: hoverIconColor, transform: 'translateY(-2px)' }}
+          transition="all 0.2s"
         >
-          <Bell size={20} className="group-hover:rotate-12 transition-transform" />
-          {/* Optional: Status Indicator Dot */}
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
-        </button>
-      </div>
-    </nav>
+          <Flex align="center" gap="3">
+            <Flex w="8" h="8" bg={projectIconBg} color="brand.500" rounded="lg" align="center" justify="center">
+              <FolderKanban size={18} />
+            </Flex>
+            <Box textAlign="left" display={{ base: "none", sm: "block" }}>
+              <Text fontSize="sm" fontWeight="bold" lineHeight="none">
+                {activeProject ? activeProject.title : 'Select Project'}
+              </Text>
+              {activeProject && (
+                <Text fontSize="10px" color="gray.400" textTransform="uppercase" letterSpacing="widest" mt="1">
+                  Active Project
+                </Text>
+              )}
+            </Box>
+            <ChevronDown size={16} />
+          </Flex>
+        </MenuButton>
+
+        <MenuList 
+          minW="280px" rounded="2xl" shadow="2xl" border="1px" borderColor={border} p="2"
+        >
+          <Flex px="4" py="2" justify="space-between" align="center" borderBottom="1px" borderColor={border} mb="2">
+            <Text fontSize="10px" fontWeight="black" color="gray.400" textTransform="uppercase" letterSpacing="widest">
+              Available Projects
+            </Text>
+            <Text as={Link} to="/projects" fontSize="10px" color="brand.500" fontWeight="bold" _hover={{ textDecoration: 'underline' }}>
+              Manage All
+            </Text>
+          </Flex>
+          
+          {projectList.length > 0 ? (
+            projectList.map((project) => (
+              <MenuItem 
+                key={project._id}
+                onClick={() => setActiveProjectId(project._id)} 
+                rounded="xl" py="3" px="4" mb="1"
+                bg={activeProjectId === project._id ? hoverBg : 'transparent'}
+                color={activeProjectId === project._id ? 'brand.500' : 'inherit'}
+                _hover={{ bg: hoverBg, color: hoverIconColor, transform: 'translateX(4px)' }}
+                transition="all 0.2s" fontWeight="bold"
+              >
+                {project.title}
+              </MenuItem>
+            ))
+          ) : (
+            <Box px="4" py="8" textAlign="center">
+              <Text fontSize="xs" color="gray.400" fontStyle="italic">No active projects</Text>
+            </Box>
+          )}
+        </MenuList>
+      </Menu>
+
+      <Box position="relative">
+        <IconButton 
+          icon={<Bell size={20} />} 
+          variant="ghost" rounded="xl" 
+          color="gray.500"
+          _hover={{ bg: hoverBg, color: hoverIconColor, transform: 'rotate(15deg) scale(1.1)' }}
+          transition="all 0.2s"
+          onClick={() => navigate('/activity')}
+          aria-label="Activity Log"
+        />
+        <Box 
+          position="absolute" top="2" right="2" w="2" h="2" 
+          bg="brand.500" rounded="full" border="2px solid" borderColor={bg} 
+        />
+      </Box>
+
+    </Flex>
   );
 }

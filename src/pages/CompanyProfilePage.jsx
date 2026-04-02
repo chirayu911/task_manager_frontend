@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api';
-import { Building2, Mail, MapPin, Loader2, Edit3, Trash2, CreditCard, } from 'lucide-react';
+import { Building2, Mail, MapPin, Loader2, Edit3, Trash2, CreditCard } from 'lucide-react';
+import { 
+  Box, Flex, Text, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, useColorModeValue, Icon, Spinner 
+} from '@chakra-ui/react';
 import ConfirmModal from '../components/ConfirmModal';
 import Notification from '../components/Notification';
 
@@ -13,6 +16,17 @@ export default function CompanyProfilePage({ setActiveCompanyId }) {
   const [notification, setNotification] = useState(null);
   
   const navigate = useNavigate();
+
+  // HORRIBLE MISTAKE AVERTED! Hooks must absolutely be at the top level BEFORE any early returns.
+  const bg = useColorModeValue('white', 'gray.800');
+  const borderColor = useColorModeValue('gray.100', 'gray.700');
+  const hoverBg = useColorModeValue('brand.50', 'whiteAlpha.50');
+  const headingColor = useColorModeValue('gray.900', 'white');
+  const theadBg = useColorModeValue('gray.50', 'gray.900');
+  const iconBg = useColorModeValue('brand.50', 'brand.900');
+  const subPlanColor = useColorModeValue('gray.700', 'gray.300');
+  const emailColor = useColorModeValue('gray.600', 'gray.400');
+  const emptyIconColor = useColorModeValue('gray.200', 'gray.700');
 
   const fetchAll = useCallback(async () => {
     try {
@@ -50,15 +64,17 @@ export default function CompanyProfilePage({ setActiveCompanyId }) {
 
   if (loading) {
     return (
-      <div className="p-20 flex flex-col items-center justify-center gap-4">
-        <Loader2 className="animate-spin text-blue-600" size={40} />
-        <p className="font-black text-gray-400 uppercase tracking-widest text-xs">Accessing Database...</p>
-      </div>
+      <Flex p={20} flexDir="column" align="center" justify="center" gap={4}>
+        <Spinner size="xl" color="brand.600" thickness="4px" />
+        <Text fontWeight="black" color="gray.400" textTransform="uppercase" letterSpacing="widest" fontSize="xs">
+          Accessing Database...
+        </Text>
+      </Flex>
     );
   }
 
   return (
-    <div className="p-8 transition-colors">
+    <Box p={8} transition="colors 0.3s">
       {notification && (
         <Notification 
           type={notification.type} 
@@ -67,103 +83,109 @@ export default function CompanyProfilePage({ setActiveCompanyId }) {
         />
       )}
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Registered Companies</h1>
-        <p className="text-gray-500 font-bold uppercase text-xs tracking-widest mt-1">
+      <Box mb={8}>
+        <Text fontSize="3xl" fontWeight="black" color={headingColor} tracking="tight">
+          Registered Companies
+        </Text>
+        <Text color="gray.500" fontWeight="bold" textTransform="uppercase" fontSize="xs" tracking="widest" mt={1}>
           System-wide organization overview & subscription management
-        </p>
-      </div>
+        </Text>
+      </Box>
 
-      <div className="grid grid-cols-1 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-[32px] shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
-                <tr className="text-[10px] font-black uppercase text-gray-400 tracking-widest">
-                  <th className="p-5">Company Name</th>
-                  <th className="p-5">Subscription</th>
-                  <th className="p-5">Contact</th>
-                  <th className="p-5">Address</th>
-                  <th className="p-5 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {companies.map((comp) => (
-                  <tr key={comp._id} className="border-b border-gray-50 dark:border-gray-800 hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-all group">
-                    <td className="p-5">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-xl group-hover:scale-110 transition-transform">
-                          <Building2 size={20} />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-bold text-gray-900 dark:text-gray-100">{comp.companyName}</span>
-                          <span className="text-[10px] text-gray-400 font-medium italic">ID: {comp._id.slice(-6)}</span>
-                        </div>
-                      </div>
-                    </td>
-                    
-                    {/* ⭐ NEW: Subscription Column */}
-                    <td className="p-5">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-sm font-black text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                          <CreditCard size={14} className="text-primary-500" />
+      <Box bg={bg} rounded="2xl" shadow="sm" border="1px solid" borderColor={borderColor} overflow="hidden">
+        <Box overflowX="auto">
+          <Table variant="simple" size="md">
+            <Thead bg={theadBg}>
+              <Tr>
+                <Th color="gray.400" fontSize="10px" fontWeight="black" tracking="widest">Company Name</Th>
+                <Th color="gray.400" fontSize="10px" fontWeight="black" tracking="widest">Subscription</Th>
+                <Th color="gray.400" fontSize="10px" fontWeight="black" tracking="widest">Contact</Th>
+                <Th color="gray.400" fontSize="10px" fontWeight="black" tracking="widest">Address</Th>
+                <Th color="gray.400" fontSize="10px" fontWeight="black" tracking="widest" isNumeric>Actions</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {companies.map((comp) => (
+                <Tr 
+                  key={comp._id} 
+                  _hover={{ bg: hoverBg }} 
+                  transition="all 0.2s"
+                  borderColor={borderColor}
+                >
+                  <Td px={5} py={4}>
+                    <Flex align="center" gap={3}>
+                      <Flex p={2.5} bg={iconBg} color="brand.600" rounded="xl" align="center" justify="center" transition="transform 0.2s" _hover={{ transform: 'scale(1.1)' }}>
+                        <Icon as={Building2} boxSize={5} />
+                      </Flex>
+                      <Flex direction="column">
+                        <Text fontWeight="bold" color={headingColor}>{comp.companyName}</Text>
+                        <Text fontSize="10px" color="gray.400" fontWeight="medium" fontStyle="italic">
+                          ID: {comp._id.slice(-6)}
+                        </Text>
+                      </Flex>
+                    </Flex>
+                  </Td>
+                  
+                  <Td px={5} py={4}>
+                    <Flex direction="column" gap={1}>
+                      <Flex align="center" gap={1.5}>
+                        <Icon as={CreditCard} boxSize={3.5} color="brand.500" />
+                        <Text fontSize="sm" fontWeight="black" color={subPlanColor}>
                           {comp.subscriptionPlan?.name || 'No Plan'}
-                        </span>
-                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded w-fit border ${
-                          comp.subscriptionStatus === 'active' 
-                            ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400' 
-                            : 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/20 dark:text-red-400'
-                        }`}>
-                          {comp.subscriptionStatus || 'Inactive'}
-                        </span>
-                      </div>
-                    </td>
+                        </Text>
+                      </Flex>
+                      <Badge 
+                        colorScheme={comp.subscriptionStatus === 'active' ? 'green' : 'red'} 
+                        w="fit-content" fontSize="10px" fontWeight="bold" px={2} py={0.5} rounded="md"
+                      >
+                        {comp.subscriptionStatus || 'Inactive'}
+                      </Badge>
+                    </Flex>
+                  </Td>
 
-                    <td className="p-5">
-                      <div className="flex flex-col gap-1 text-gray-600 dark:text-gray-400 text-sm font-medium">
-                        <div className="flex items-center gap-2">
-                          <Mail size={14} className="text-gray-400" />
-                          {comp.companyEmail}
-                        </div>
-                        <span className="text-xs text-gray-400 ml-5">{comp.industry || 'General'}</span>
-                      </div>
-                    </td>
+                  <Td px={5} py={4}>
+                    <Flex direction="column" gap={1} color={emailColor} fontSize="sm" fontWeight="medium">
+                      <Flex align="center" gap={2}>
+                        <Icon as={Mail} boxSize={3.5} color="gray.400" />
+                        <Text>{comp.companyEmail}</Text>
+                      </Flex>
+                      <Text fontSize="xs" color="gray.400" ml={5}>{comp.industry || 'General'}</Text>
+                    </Flex>
+                  </Td>
 
-                    <td className="p-5">
-                      <div className="flex items-start gap-2 max-w-[200px]">
-                        <MapPin size={14} className="text-gray-400 mt-1 flex-shrink-0" />
-                        <span className="text-xs text-gray-500 font-medium leading-tight">
-                          {comp.fullAddress || 'Address not set'}
-                        </span>
-                      </div>
-                    </td>
+                  <Td px={5} py={4}>
+                    <Flex align="flex-start" gap={2} maxW="200px">
+                      <Icon as={MapPin} boxSize={3.5} color="gray.400" mt={1} flexShrink={0} />
+                      <Text fontSize="xs" color="gray.500" fontWeight="medium" lineHeight="tight">
+                        {comp.fullAddress || 'Address not set'}
+                      </Text>
+                    </Flex>
+                  </Td>
 
-                    {/* ⭐ NEW: Action Buttons */}
-                    <td className="p-5 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button 
-                          onClick={() => openDeleteModal(comp._id)}
-                          className="p-2.5 bg-gray-50 dark:bg-gray-700 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                          title="Delete Organization"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          
-          {companies.length === 0 && (
-            <div className="p-24 text-center">
-              <Building2 className="text-gray-200 dark:text-gray-700 mx-auto mb-4" size={64} />
-              <p className="text-gray-400 font-black uppercase tracking-widest text-sm">No organizations found</p>
-            </div>
-          )}
-        </div>
-      </div>
+                  <Td px={5} py={4} isNumeric>
+                    <IconButton 
+                      icon={<Trash2 size={18} />} 
+                      onClick={() => openDeleteModal(comp._id)}
+                      colorScheme="red" variant="ghost" rounded="xl"
+                      aria-label="Delete Organization"
+                      _hover={{ bg: 'red.500', color: 'white' }}
+                    />
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </Box>
+        
+        {companies.length === 0 && (
+          <Flex p={24} direction="column" align="center" justify="center">
+            <Icon as={Building2} boxSize={16} color={emptyIconColor} mb={4} />
+            <Text color="gray.400" fontWeight="black" textTransform="uppercase" tracking="widest" fontSize="sm">
+              No organizations found
+            </Text>
+          </Flex>
+        )}
+      </Box>
 
       <ConfirmModal
         isOpen={isDeleteModalOpen}
@@ -172,6 +194,6 @@ export default function CompanyProfilePage({ setActiveCompanyId }) {
         title="Delete Organization"
         message="Are you sure? This will remove all data associated with this company. This action cannot be undone."
       />
-    </div>
+    </Box>
   );
 }

@@ -35,13 +35,17 @@ import SubscriptionSelectionPage from './pages/SubscriptionSelectionPage'; // As
 import ActivityLogPage from './pages/ActivityLogPage'; // Bonus: Activity Log Page
 import LandingPage from "./pages/LandingPage";
 import ManageWebsitePage from "./pages/ManageWebsitePage";
+import AdminAuditLogPage from "./pages/AdminAuditLogPage";
+import ChatPage from "./pages/ChatPage";
+import ReportsPage from "./pages/ReportsPage";
 
 // Components
 import MainLayout from "./components/MainLayout";
 import Notification from "./components/Notification";
 
-// Theme Provider
-import { ThemeProvider } from "./context/ThemeContext";
+// Chakra UI
+import { Flex, Spinner, Text } from "@chakra-ui/react";
+import { useThemeManager } from "./context/ThemeLoader";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -51,6 +55,7 @@ export default function App() {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const { setThemeColor } = useThemeManager(); // ⭐ NEW
   const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || "http://localhost:5000/api";
 
   // Project Context State Logic
@@ -94,6 +99,9 @@ export default function App() {
       try {
         const { data } = await API.get(`/auth/me?t=${new Date().getTime()}`);
         setUser(data);
+        if (data.company?.themeColor) {
+          setThemeColor(data.company.themeColor); // Sync global theme on load
+        }
       } catch (error) {
         setUser(null);
       } finally {
@@ -101,7 +109,14 @@ export default function App() {
       }
     };
     checkLoggedIn();
-  }, []);
+  }, [setThemeColor]);
+
+  // Sync theme immediately after Login changes the user state
+  useEffect(() => {
+    if (user && user.company?.themeColor) {
+      setThemeColor(user.company.themeColor);
+    }
+  }, [user, setThemeColor]);
 
   // 2. REAL-TIME SOCKET CONNECTION
   useEffect(() => {
@@ -189,17 +204,19 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="font-bold text-gray-600 dark:text-gray-400 animate-pulse text-sm uppercase">Verifying Session...</p>
-        </div>
-      </div>
+      <Flex h="100vh" w="100%" align="center" justify="center" transition="background-color 0.3s">
+        <Flex direction="column" align="center" gap={4}>
+          <Spinner size="xl" thickness="4px" speed="0.65s" emptyColor="transparent" color="brand.500" />
+          <Text fontWeight="bold" color="gray.500" textTransform="uppercase" fontSize="sm">
+            Verifying Session...
+          </Text>
+        </Flex>
+      </Flex>
     );
   }
 
   return (
-    <ThemeProvider>
+    <>
       {notification && (
         <Notification
           type={notification.type}
@@ -244,6 +261,8 @@ export default function App() {
         <Route path="/admin" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
         <Route path="/staff" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
         <Route path="/activity" element={<ProtectedRoute><ActivityLogPage user={user} /></ProtectedRoute>} />
+        <Route path="/admin/audit-logs" element={<ProtectedRoute requiredPermission="*"><AdminAuditLogPage /></ProtectedRoute>} />
+        <Route path="/chat" element={<ProtectedRoute><ChatPage user={user} /></ProtectedRoute>} />
 
         <Route path="/admin/company" element={<ProtectedRoute> <CompanyProfilePage /> </ProtectedRoute>} />
         <Route path="/admin/company-settings" element={<ProtectedRoute><CompanySettingsPage user={user} /> </ProtectedRoute>} />
@@ -280,6 +299,8 @@ export default function App() {
         <Route path="/projects/create" element={<ProtectedRoute requiredPermission="projects_create"><ProjectFormPage user={user} /></ProtectedRoute>} />
         <Route path="/projects/edit/:id" element={<ProtectedRoute requiredPermission="projects_update"><ProjectFormPage user={user} activeProjectId={activeProjectId} /></ProtectedRoute>} />
 
+        <Route path="/reports" element={<ProtectedRoute requiredPermission="projects_read"><ReportsPage activeProjectId={activeProjectId} /></ProtectedRoute>} />
+
         <Route path="/admin/subscriptions" element={<ProtectedRoute><SubscriptionPage user={user} /></ProtectedRoute>} />
         <Route path="/admin/subscriptions/create" element={<ProtectedRoute><SubscriptionFormPage /></ProtectedRoute>} />
         <Route path="/admin/subscriptions/edit/:id" element={<ProtectedRoute><SubscriptionFormPage /></ProtectedRoute>} />
@@ -303,6 +324,6 @@ export default function App() {
         {/* Catch-all Redirect */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </ThemeProvider>
+    </>
   );
 }

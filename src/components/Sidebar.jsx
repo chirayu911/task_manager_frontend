@@ -1,23 +1,15 @@
-import React, { useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useMemo, useState, useEffect } from "react";
+import { Link as RouterLink, useLocation } from "react-router-dom";
+import API from '../api';
 import {
-  LayoutDashboard,
-  Users,
-  ClipboardList,
-  ShieldPlus,
-  Folder,
-  LogOut,
-  Settings,
-  ChevronUp,
-  ChevronDown,
-  FolderKanban,
-  AlertTriangle,
-  Briefcase,
-  CreditCard,
-  FileText,
-  MonitorPlay,
-  Building2 // ⭐ Added for Company branding
+  LayoutDashboard, Users, ClipboardList, ShieldPlus, Folder,
+  LogOut, Settings, ChevronUp, ChevronDown, FolderKanban,
+  AlertTriangle, Briefcase, CreditCard, FileText, MonitorPlay, Building2,
+  Server, MessageSquare, PieChart
 } from "lucide-react";
+import {
+  Flex, Box, Text, VStack, Collapse, Icon, useColorModeValue, Menu, MenuButton, MenuList, MenuItem, MenuDivider, Button, Image, Badge
+} from "@chakra-ui/react";
 import ConfirmModal from "./ConfirmModal";
 import EditProfileModal from "./EditProfileModal";
 
@@ -31,272 +23,262 @@ export default function Sidebar({ user, handleLogout }) {
     return `${baseUrl}/${cleanPath}`;
   };
 
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+  useEffect(() => {
+    const fetchUnread = async () => {
+      try {
+        const { data } = await API.get('/chat/conversations/unread-count');
+        setUnreadChatCount(data.unreadCount || 0);
+      } catch (err) {
+        // ignore
+      }
+    };
+    if (user) fetchUnread();
+
+    window.addEventListener('chatRead', fetchUnread);
+    return () => window.removeEventListener('chatRead', fetchUnread);
+  }, [user, location.pathname]); // Refresh when navigating around
 
   const [isProjectsOpen, setIsProjectsOpen] = useState(() => {
-    const projectPaths = ["/projects", "/tasks", "/issues", "/team", "/admin/task-status", "/documents"];
+    const projectPaths = ["/projects", "/tasks", "/issues", "/team", "/admin/task-status", "/documents", "/reports"];
     return projectPaths.includes(location.pathname);
   });
 
-  // Extract Company Info
   const companyName = useMemo(() => {
-    // If user isn't loaded yet
     if (!user) return "Loading...";
-
-    // Check if the company field is populated as an object (standard behavior)
-    if (user.company && typeof user.company === 'object') {
-      return user.company.companyName;
-    }
-
-    // Fallback 1: If the backend sent a flat companyName field
+    if (user.company && typeof user.company === 'object') return user.company.companyName;
     if (user.companyName) return user.companyName;
-
-    // Fallback 2: Default branding
     return "NOVA";
   }, [user]);
 
-  const roleName = useMemo(() =>
-    typeof user?.role === "object" ? user.role?.name : user?.role,
-    [user]);
-
+  const roleName = useMemo(() => typeof user?.role === "object" ? user.role?.name : user?.role, [user]);
   const perms = useMemo(() => user?.permissions || [], [user]);
-
-  // ⭐ Logic updated for Company Owner
-  const isAdmin = useMemo(() =>
-    roleName === "admin" || perms.includes("*") || user?.isCompanyOwner,
-    [roleName, perms, user?.isCompanyOwner]);
+  const isAdmin = useMemo(() => roleName === "admin" || perms.includes("*") || user?.isCompanyOwner, [roleName, perms, user?.isCompanyOwner]);
 
   const can = (permission) => isAdmin || perms.includes(permission);
 
   const menuItems = [
+    { name: "Dashboard", path: isAdmin ? "/admin" : "/staff", icon: LayoutDashboard, allowed: true },
     {
-      name: "Dashboard",
-      path: isAdmin ? "/admin" : "/staff",
-      icon: <LayoutDashboard size={20} />,
-      allowed: true,
-    },
-    {
-      name: "Projects",
-      icon: <FolderKanban size={20} />,
-      isSubmenu: true,
-      allowed: can("projects_read") || can("tasks_read"),
+      name: "Projects", icon: FolderKanban, isSubmenu: true, allowed: can("projects_read") || can("tasks_read"),
       children: [
-        { name: "Projects", path: "/projects", icon: <Folder size={20} />, allowed: can("projects_read") },
-        { name: "Tasks", path: "/tasks", icon: <ClipboardList size={20} />, allowed: can("tasks_read") },
-        { name: "Issues", path: "/issues", icon: <AlertTriangle size={20} />, allowed: can("tasks_read") },
-        { name: "Team", path: "/team", icon: <Users size={20} />, allowed: can("projects_read") },
-        { name: "Task Statuses", path: "/admin/task-status", icon: <Settings size={20} />, allowed: can("roles_update") },
-        { name: "Documents", path: "/documents", icon: <FileText size={20} />, allowed: can("projects_read") },
+        { name: "Reports", path: "/reports", icon: PieChart, allowed: can("reports_read") },
+        { name: "Projects", path: "/projects", icon: Folder, allowed: can("projects_read") },
+        { name: "Tasks", path: "/tasks", icon: ClipboardList, allowed: can("tasks_read") },
+        { name: "Issues", path: "/issues", icon: AlertTriangle, allowed: can("tasks_read") },
+        { name: "Team", path: "/team", icon: Users, allowed: can("projects_read") },
+        { name: "Task Statuses", path: "/admin/task-status", icon: Settings, allowed: can("roles_update") },
+        { name: "Documents", path: "/documents", icon: FileText, allowed: can("documents_read") },
       ]
     },
-    {
-      name: "Staff",
-      path: "/admin/staff",
-      icon: <Users size={20} />,
-      allowed: can("staff_read"),
-    },
-    {
-      name: "Roles",
-      path: "/admin/roles",
-      icon: <Briefcase size={20} />,
-      allowed: isAdmin && !user?.isCompanyOwner,
-    },
-    {
-      name: "Permissions",
-      path: "/admin/permissions",
-      icon: <ShieldPlus size={20} />,
-      allowed: isAdmin && !user?.isCompanyOwner,
-    },
-    {
-      name: "Companies",
-      path: "/admin/company",
-      icon: <Building2 size={20} />,
-      allowed: isAdmin && !user?.isCompanyOwner,
-    },
-    {
-      name: "Subscriptions",
-      path: "/admin/subscriptions",
-      icon: <CreditCard size={20} />,
-      // ⭐ OWNER SPECIAL CASE: As per your requirement, owners cannot see subscriptions
-      allowed: isAdmin && !user?.isCompanyOwner,
-    },
-    {
-      name: "Company Profile",
-      path: "/admin/company-settings",
-      icon: <Building2 size={20} />,
-      // ⭐ Only visible to Admin or Company Owner
-      allowed: isAdmin || user?.isCompanyOwner,
-    },
-    {
-      name: "Manage Website",
-      path: "/admin/manage-website",
-      icon: <MonitorPlay size={20} />,
-      allowed: isAdmin && !user?.isCompanyOwner, // Only admins should see this
-    },
+    { name: "Chat", path: "/chat", icon: MessageSquare, allowed: can("chat_read") },
+    { name: "Staff", path: "/admin/staff", icon: Users, allowed: can("staff_read") },
+    { name: "Roles", path: "/admin/roles", icon: Briefcase, allowed: isAdmin && !user?.isCompanyOwner },
+    { name: "Permissions", path: "/admin/permissions", icon: ShieldPlus, allowed: isAdmin && !user?.isCompanyOwner },
+    { name: "Companies", path: "/admin/company", icon: Building2, allowed: isAdmin && !user?.isCompanyOwner },
+    { name: "Subscriptions", path: "/admin/subscriptions", icon: CreditCard, allowed: isAdmin && !user?.isCompanyOwner },
+    { name: "Company Profile", path: "/admin/company-settings", icon: Building2, allowed: isAdmin || user?.isCompanyOwner },
+    { name: "Manage Website", path: "/admin/manage-website", icon: MonitorPlay, allowed: isAdmin && !user?.isCompanyOwner },
+    { name: "Audit Logs", path: "/admin/audit-logs", icon: Server, allowed: roleName === "superadmin" || (isAdmin && !user?.isCompanyOwner) },
   ];
+
+  const sidebarBg = useColorModeValue('white', 'gray.900');
+  const borderColor = useColorModeValue('gray.200', 'gray.800');
+  const textColor = useColorModeValue('gray.600', 'gray.400');
+  const activeBg = useColorModeValue('brand.50', 'whiteAlpha.100');
+  const activeColor = useColorModeValue('brand.600', 'brand.300');
+  const hoverBg = useColorModeValue('gray.50', 'whiteAlpha.50');
+
+  const headingColor = useColorModeValue('gray.900', 'white');
+  const activeSubmenuBg = useColorModeValue('gray.100', 'gray.800');
+  const activeSubmenuColor = useColorModeValue('gray.900', 'white');
+  const profileHoverBg = useColorModeValue('gray.100', 'gray.800');
+  const profileNameColor = useColorModeValue('gray.800', 'gray.100');
+  const profileRoleBg = useColorModeValue('gray.100', 'gray.800');
+  const btnHoverBg = useColorModeValue('gray.200', 'gray.700');
+  const btnColor = useColorModeValue('gray.700', 'gray.200');
+  const signOutBg = useColorModeValue('red.50', 'whiteAlpha.50');
+  const signOutBorder = useColorModeValue('red.100', 'transparent');
+  const companyValueColor = useColorModeValue('gray.700', 'gray.300');
+  const footerBg = useColorModeValue('gray.50', 'whiteAlpha.50');
+
+  // Used for hover states in maps
+  const invertedTextColor = useColorModeValue('gray.900', 'white');
 
   return (
     <>
-      <div className="w-64 bg-white dark:bg-gray-950 h-screen text-gray-800 dark:text-white flex flex-col fixed left-0 top-0 shadow-xl dark:shadow-none border-r border-gray-200 dark:border-gray-800 z-40 transition-colors duration-300">
-
-        {/* Fixed Header: Shows Company Name */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-800 shrink-0">
-          <div className="flex items-center gap-2 mb-1">
-            <Building2 size={24} className="text-primary-600 shrink-0" />
-            <h1 className="text-xl font-black text-gray-900 dark:text-white tracking-tight truncate" title={companyName}>
+      <Flex
+        as="aside"
+        w="64" h="100vh" bg={sidebarBg} color={textColor}
+        direction="column" position="fixed" left="0" top="0" zIndex="40"
+        borderRight="1px solid" borderColor={borderColor}
+        transition="colors 0.3s"
+      >
+        {/* Header */}
+        <Box p="6" borderBottom="1px solid" borderColor={borderColor} flexShrink={0}>
+          <Flex align="center" gap="2" mb="1">
+            <Icon as={Building2} boxSize="6" color="brand.600" />
+            <Text fontSize="xl" fontWeight="black" color={headingColor} noOfLines={1} title={companyName}>
               {companyName}
-            </h1>
-          </div>
-          <p className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest pl-8">
+            </Text>
+          </Flex>
+          <Text fontSize="10px" color="gray.500" fontWeight="black" textTransform="uppercase" letterSpacing="widest" pl="8">
             {user?.isCompanyOwner ? "Owner" : roleName} Workspace
-          </p>
-        </div>
+          </Text>
+        </Box>
 
         {/* Scrollable Nav Area */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {menuItems.map((item) => {
-            if (!item.allowed) return null;
+        <Box flex="1" p="4" overflowY="auto" css={{ '&::-webkit-scrollbar': { display: 'none' }, msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+          <VStack spacing="2" align="stretch">
+            {menuItems.map((item) => {
+              if (!item.allowed) return null;
 
-            if (item.isSubmenu) {
-              const isAnyChildActive = item.children.some(child => location.pathname === child.path);
+              if (item.isSubmenu) {
+                const isAnyChildActive = item.children.some(child => location.pathname === child.path);
+                const buttonBg = (isAnyChildActive && !isProjectsOpen) ? activeSubmenuBg : 'transparent';
+                const buttonColor = (isAnyChildActive && !isProjectsOpen) ? activeSubmenuColor : textColor;
 
+                return (
+                  <Box key={item.name}>
+                    <Flex
+                      as="button" w="full" align="center" justify="space-between" px="4" py="3" rounded="xl" fontWeight="bold"
+                      bg={buttonBg} color={buttonColor} transition="all 0.2s"
+                      _hover={{ bg: hoverBg, color: headingColor, transform: "translateX(2px)" }}
+                      onClick={() => setIsProjectsOpen(!isProjectsOpen)}
+                    >
+                      <Flex align="center" gap="3">
+                        <Icon as={item.icon} boxSize="5" />
+                        {item.name}
+                      </Flex>
+                      <Icon as={isProjectsOpen ? ChevronUp : ChevronDown} boxSize="4" />
+                    </Flex>
+
+                    <Collapse in={isProjectsOpen} animateOpacity>
+                      <VStack pl="4" mt="1.5" spacing="1.5" align="stretch">
+                        {item.children.map((child) => {
+                          if (!child.allowed) return null;
+                          const isChildActive = location.pathname === child.path;
+                          return (
+                            <Flex
+                              as={RouterLink} to={child.path} key={child.name}
+                              align="center" gap="3" px="4" py="2.5" rounded="xl" fontWeight="bold" transition="all 0.2s"
+                              bg={isChildActive ? activeBg : 'transparent'}
+                              color={isChildActive ? activeColor : textColor}
+                              _hover={!isChildActive ? { bg: hoverBg, color: invertedTextColor, transform: "translateX(4px)" } : {}}
+                            >
+                              <Icon as={child.icon} boxSize="5" />
+                              {child.name}
+                            </Flex>
+                          );
+                        })}
+                      </VStack>
+                    </Collapse>
+                  </Box>
+                );
+              }
+
+              const isActive = location.pathname === item.path;
               return (
-                <div key={item.name} className="space-y-1.5">
-                  <button
-                    onClick={() => setIsProjectsOpen(!isProjectsOpen)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold transition-all ${isAnyChildActive && !isProjectsOpen
-                        ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
-                        : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
-                      }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {item.icon}
-                      {item.name}
-                    </div>
-                    {isProjectsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </button>
-
-                  {isProjectsOpen && (
-                    <div className="pl-4 space-y-1.5 animate-in slide-in-from-top-2 duration-200 mt-1.5">
-                      {item.children.map((child) => {
-                        if (!child.allowed) return null;
-                        const isChildActive = location.pathname === child.path;
-
-                        return (
-                          <Link
-                            key={child.name}
-                            to={child.path}
-                            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl font-bold transition-all ${isChildActive
-                                ? "bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400"
-                                : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
-                              }`}
-                          >
-                            {child.icon}
-                            {child.name}
-                          </Link>
-                        );
-                      })}
-                    </div>
+                <Flex
+                  as={RouterLink} to={item.path} key={item.name}
+                  align="center" px="4" py="3" rounded="xl" fontWeight="bold" transition="all 0.2s"
+                  bg={isActive ? activeBg : 'transparent'}
+                  color={isActive ? activeColor : textColor}
+                  _hover={!isActive ? { bg: hoverBg, color: invertedTextColor, transform: "translateX(4px)" } : {}}
+                >
+                  <Flex align="center" gap="3">
+                    <Icon as={item.icon} boxSize="5" />
+                    {item.name}
+                  </Flex>
+                  {item.name === "Chat" && unreadChatCount > 0 && (
+                    <Badge colorScheme="red" ml="auto" rounded="full" px="2">{unreadChatCount}</Badge>
                   )}
-                </div>
+                </Flex>
               );
-            }
-
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.name}
-                to={item.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${isActive
-                    ? "bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400"
-                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
-                  }`}
-              >
-                {item.icon}
-                {item.name}
-              </Link>
-            );
-          })}
-        </nav>
+            })}
+          </VStack>
+        </Box>
 
         {/* Footer Profile Section */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-950/80 relative shrink-0">
+        <Box p="4" borderTop="1px solid" borderColor={borderColor} bg={footerBg} flexShrink={0}>
 
-          {isProfileOpen && (
-            <div className="absolute bottom-full left-0 w-full p-4 pb-2 z-50">
-              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-5 transform transition-all">
-                <div className="flex flex-col items-center mb-4">
-                  <div className="w-16 h-16 bg-gradient-to-tr from-primary-600 to-indigo-500 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-inner mb-3 overflow-hidden">
+          <Menu placement="top" autoSelect={false}>
+            <MenuButton
+              as={Flex} w="full" p="2" mb="3" rounded="xl" cursor="pointer" transition="all 0.2s"
+              _hover={{ bg: profileHoverBg }}
+            >
+              <Flex align="center" justify="space-between" w="full">
+                <Flex align="center" gap="3">
+                  <Flex w="10" h="10" bgGradient="linear(to-br, brand.600, indigo.600)" rounded="full" align="center" justify="center" overflow="hidden" color="white" fontWeight="bold" shadow="sm" border="1px solid" borderColor={borderColor}>
                     {user?.profilePicture ? (
-                      <img src={getProfilePicUrl(user.profilePicture)} alt="Profile" className="w-full h-full object-cover" />
+                      <Image src={getProfilePicUrl(user.profilePicture)} alt="Profile" w="full" h="full" objectFit="cover" />
                     ) : (
                       user?.name?.charAt(0).toUpperCase() || 'U'
                     )}
-                  </div>
-                  <h3 className="text-gray-900 dark:text-white font-bold text-lg leading-tight">{user?.name}</h3>
-                  <p className="text-primary-500 dark:text-primary-400 text-xs font-bold">@{user?.username || 'user'}</p>
-                </div>
-
-                <div className="space-y-3 text-sm border-t border-gray-100 dark:border-gray-800 pt-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400 dark:text-gray-500 text-[10px] uppercase font-black tracking-wider">Company</span>
-                    <span className="text-gray-700 dark:text-gray-300 font-bold truncate max-w-[120px]">
+                  </Flex>
+                  <Box textAlign="left">
+                    <Text fontSize="sm" fontWeight="bold" color={profileNameColor} noOfLines={1} w="28">
+                      {user?.name}
+                    </Text>
+                    <Text fontSize="10px" color="gray.500" fontWeight="bold" textTransform="uppercase" letterSpacing="widest" noOfLines={1}>
                       {companyName}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400 dark:text-gray-500 text-[10px] uppercase font-black tracking-wider">Role</span>
-                    <span className="bg-gray-100 dark:bg-gray-800 text-primary-600 dark:text-primary-400 px-2 py-1 rounded-md text-[10px] font-black uppercase border border-gray-200 dark:border-gray-700">
-                      {user?.isCompanyOwner ? "Owner" : roleName}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => { setIsProfileOpen(false); setIsEditProfileOpen(true); }}
-                    className="w-full mt-4 flex items-center justify-center py-2 bg-gray-100/70 hover:bg-gray-200 dark:bg-gray-800 hover:dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-bold transition-all border border-gray-200 dark:border-gray-700"
-                  >
-                    Edit Profile
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+                    </Text>
+                  </Box>
+                </Flex>
+                <ChevronUp size={18} />
+              </Flex>
+            </MenuButton>
 
-          <button
-            onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className="flex items-center justify-between w-full p-2 mb-3 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-xl transition-colors group cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-600 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
-                {user?.profilePicture ? (
-                  <img src={getProfilePicUrl(user.profilePicture)} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  user?.name?.charAt(0).toUpperCase() || 'U'
-                )}
-              </div>
-              <div className="text-left">
-                <p className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate w-28 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                  {user?.name}
-                </p>
-                <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold truncate uppercase tracking-widest">
-                  {companyName}
-                </p>
-              </div>
-            </div>
-            {isProfileOpen ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
-          </button>
+            <MenuList minW="xs" p="4" rounded="2xl" shadow="2xl" border="1px solid" borderColor={borderColor}>
+              <Flex direction="column" align="center" mb="4">
+                <Flex w="16" h="16" mb="3" bgGradient="linear(to-tr, brand.600, indigo.500)" rounded="full" align="center" justify="center" overflow="hidden" color="white" fontSize="2xl" fontWeight="black" shadow="inner">
+                  {user?.profilePicture ? (
+                    <Image src={getProfilePicUrl(user.profilePicture)} alt="Profile" w="full" h="full" objectFit="cover" />
+                  ) : (
+                    user?.name?.charAt(0).toUpperCase() || 'U'
+                  )}
+                </Flex>
+                <Text fontSize="lg" fontWeight="bold" color={headingColor} lineHeight="tight">{user?.name}</Text>
+                <Text fontSize="xs" fontWeight="bold" color="brand.500">@{user?.username || 'user'}</Text>
+              </Flex>
 
-          <button
+              <Box pt="4" borderTop="1px solid" borderColor={borderColor}>
+                <Flex justify="space-between" align="center" mb="2">
+                  <Text fontSize="10px" fontWeight="black" color="gray.400" textTransform="uppercase" letterSpacing="wider">Company</Text>
+                  <Text fontSize="sm" fontWeight="bold" color={companyValueColor} noOfLines={1} maxW="120px">{companyName}</Text>
+                </Flex>
+                <Flex justify="space-between" align="center">
+                  <Text fontSize="10px" fontWeight="black" color="gray.400" textTransform="uppercase" letterSpacing="wider">Role</Text>
+                  <Text bg={profileRoleBg} color="brand.600" px="2" py="1" rounded="md" fontSize="10px" fontWeight="black" textTransform="uppercase" border="1px solid" borderColor={borderColor}>
+                    {user?.isCompanyOwner ? "Owner" : roleName}
+                  </Text>
+                </Flex>
+                <Button
+                  w="full" mt="4" size="sm" rounded="lg" bg={profileHoverBg} color={btnColor}
+                  _hover={{ bg: btnHoverBg }} onClick={() => setIsEditProfileOpen(true)}
+                >
+                  Edit Profile
+                </Button>
+              </Box>
+            </MenuList>
+          </Menu>
+
+          <Button
+            w="full" py="5" rounded="xl" fontWeight="bold" variant="outline"
+            leftIcon={<LogOut size={16} />}
+            color="red.600" bg={signOutBg} borderColor={signOutBorder}
+            _hover={{ bg: 'red.500', color: 'white', borderColor: 'red.500' }} transition="all 0.2s"
+            _active={{ transform: 'scale(0.95)' }}
             onClick={() => setIsLogoutModalOpen(true)}
-            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white rounded-xl font-bold transition-all active:scale-95 border border-red-100 dark:border-red-500/20 hover:border-red-500"
           >
-            <LogOut size={16} />
             Sign Out
-          </button>
+          </Button>
 
-        </div>
-      </div>
+        </Box>
+      </Flex>
 
       <ConfirmModal
         isOpen={isLogoutModalOpen}
@@ -306,8 +288,8 @@ export default function Sidebar({ user, handleLogout }) {
         message="Are you sure you want to sign out of your organization?"
         confirmText="Yes, Sign Out"
       />
-      
-      <EditProfileModal 
+
+      <EditProfileModal
         isOpen={isEditProfileOpen}
         onClose={() => setIsEditProfileOpen(false)}
         user={user}

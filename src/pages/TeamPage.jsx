@@ -57,18 +57,28 @@ export default function TeamPage({ activeProjectId }) {
             className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center text-center hover:shadow-md transition-shadow"
           >
             {/* Avatar Circle */}
-            <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-xl font-black mb-4 border border-blue-100 shadow-inner">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-xl font-black mb-4 shadow-inner border ${
+              member.isCompanyOwner
+                ? 'bg-amber-50 text-amber-600 border-amber-200'
+                : 'bg-blue-50 text-blue-600 border-blue-100'
+            }`}>
               {member.name ? member.name.charAt(0).toUpperCase() : '?'}
             </div>
             
             {/* Member Details */}
-            <h3 className="font-bold text-gray-800">{member.name}</h3>
-            <p className="text-xs text-gray-500 mb-4">{member.email}</p>
+            <h3 className="font-bold text-gray-800 dark:text-white">{member.name}</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{member.email}</p>
             
             {/* Role Badge */}
-            <span className="bg-gray-50 text-gray-600 border border-gray-200 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full">
-              {member.role?.name || 'Staff'}
-            </span>
+            {member.isCompanyOwner ? (
+              <span className="bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full">
+                Owner
+              </span>
+            ) : (
+              <span className="bg-gray-50 text-gray-600 border border-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600 text-[10px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full">
+                {member.role?.name || 'Staff'}
+              </span>
+            )}
           </div>
         ))}
         

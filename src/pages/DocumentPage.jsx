@@ -227,25 +227,25 @@ export default function DocumentPage({ user, activeProjectId }) {
 
         <div className="flex gap-4">
           {can('documents_create') && (
-            <div className={isLimitReached ? "opacity-70 cursor-not-allowed" : ""}>
-              <button
-                onClick={handleCreateTextClick}
-                className="flex items-center gap-2.5 px-6 py-3.5 bg-green-600 text-white rounded-2xl font-black text-sm hover:bg-green-700 transition-all shadow-md shadow-green-200 dark:shadow-none animate-in fade-in zoom-in-95 duration-200 active:scale-95"
-              >
-                <Plus size={18} /> Create document
-              </button>
-            </div>
+            <CreateButton
+              onClick={handleCreateTextClick}
+              label="Create document"
+              icon={Plus}
+              size="lg"
+              isDisabled={isLimitReached}
+            />
           )}
 
           {can('documents_create') && (
-            <div className={isLimitReached ? "opacity-70 cursor-not-allowed" : ""}>
-              <button
-                onClick={handleUploadClick}
-                className="flex items-center gap-2.5 px-6 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none animate-in fade-in zoom-in-95 duration-200 active:scale-95"
-              >
-                <Upload size={18} /> upload document
-              </button>
-            </div>
+            <CreateButton
+              onClick={handleUploadClick}
+              label="Upload document"
+              icon={Upload}
+              variant="outline"
+              borderWidth="2px"
+              size="lg"
+              isDisabled={isLimitReached}
+            />
           )}
         </div>
       </div>

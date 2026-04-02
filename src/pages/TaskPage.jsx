@@ -263,19 +263,48 @@ export default function TaskPage({ user, socket, activeProjectId }) {
                                         <ExternalLink size={14} />
                                       </button>
                                     </div>
-                                    <h4 className="text-sm font-black text-gray-900 dark:text-gray-100 mb-6 line-clamp-2 leading-relaxed tracking-tight">
-                                      {task.title}
-                                    </h4>
+                                    <div className="mb-6">
+                                      <h4 className="text-sm font-black text-gray-900 dark:text-gray-100 line-clamp-2 leading-relaxed tracking-tight">
+                                        {task.title}
+                                      </h4>
+                                      {task.description && (
+                                        <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 line-clamp-3 leading-relaxed font-medium">
+                                          {task.description}
+                                        </div>
+                                      )}
+                                    </div>
                                     <div className="flex items-center justify-between border-t border-gray-50 dark:border-gray-800 pt-5 mt-auto">
                                       <div className="flex items-center gap-2.5">
-                                        <div className="w-7 h-7 bg-primary-50 dark:bg-primary-900 text-primary-600 rounded-xl flex items-center justify-center text-[11px] font-black shadow-inner border border-primary-100 dark:border-primary-800">
+                                        <div className="w-7 h-7 bg-primary-50 dark:bg-primary-900 text-primary-600 rounded-xl flex items-center justify-center text-[11px] font-black shadow-inner border border-primary-100 dark:border-primary-800 shrink-0">
                                           {task.assignedTo?.name ? task.assignedTo.name[0] : <User size={12}/>}
                                         </div>
-                                        <span className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-tighter truncate max-w-[90px]">
-                                          {task.assignedTo?.name || 'Unassigned'}
-                                        </span>
+                                        <div className="flex flex-col">
+                                          {(isAdmin || can('tasks_update')) ? (
+                                            <select
+                                              value={task.assignedTo?._id || task.assignedTo || ''}
+                                              onChange={(e) => handleInlineUpdate(task._id, 'assignedTo', e.target.value)}
+                                              className="text-[10px] font-black text-gray-700 dark:text-gray-300 uppercase tracking-tighter truncate max-w-[120px] bg-transparent border-none outline-none focus:ring-0 p-0 m-0 cursor-pointer appearance-none"
+                                              title="Change Assignee"
+                                            >
+                                              <option value="">Unassigned</option>
+                                              {staffList.map((s) => (
+                                                <option key={s._id} value={s._id}>{s.name}</option>
+                                              ))}
+                                            </select>
+                                          ) : (
+                                            <span className="text-[10px] font-black text-gray-700 dark:text-gray-300 uppercase tracking-tighter truncate max-w-[120px]">
+                                              {task.assignedTo?.name || 'Unassigned'}
+                                            </span>
+                                          )}
+                                          
+                                          {task.assignedTo?.email && (
+                                            <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 truncate max-w-[120px]">
+                                              {task.assignedTo.email}
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
-                                      <div className="flex items-center gap-1.5 text-gray-300 dark:text-gray-600">
+                                      <div className="flex items-center gap-1.5 text-gray-300 dark:text-gray-600 shrink-0">
                                         <Clock size={12} strokeWidth={3} />
                                         <span className="text-[10px] font-black">{task.hours || 0}h</span>
                                       </div>

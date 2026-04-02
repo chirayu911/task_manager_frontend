@@ -162,12 +162,19 @@ export default function AdminStaffCRUD({ user, socket }) {
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border 
-                    ${(user.role?.name || staffMember.role) === 'admin'
-                      ? 'bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/30'
-                      : 'bg-primary-50 text-primary-700 border-primary-100 dark:bg-primary-900/30'}`}>
-                    {user.role?.name || staffMember.role || "No Role"}
-                  </span>
+                  {staffMember.isCompanyOwner ? (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
+                      Owner
+                    </span>
+                  ) : (staffMember.role?.name || typeof staffMember.role === 'string') === 'admin' ? (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-900/30">
+                      {staffMember.role?.name || staffMember.role}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border bg-primary-50 text-primary-700 border-primary-100 dark:bg-primary-900/30">
+                      {staffMember.role?.name || (typeof staffMember.role === 'string' ? staffMember.role : 'No Role')}
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex justify-end gap-1">

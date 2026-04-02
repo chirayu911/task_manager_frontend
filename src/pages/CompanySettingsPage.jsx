@@ -3,12 +3,15 @@ import {
   Building2, Clock, CalendarX, Save, Loader2, Plus, Trash2,
   MapPin, Mail, Phone, ImagePlus, CreditCard, Users, Layers, Zap, ArrowUpCircle
 } from 'lucide-react';
+import { Button } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom'; // ⭐ Added for navigation
 import API from '../api';
 import Notification from '../components/Notification';
+import { useThemeManager } from '../context/ThemeLoader';
 
 export default function CompanySettingsPage({ user }) {
   const navigate = useNavigate(); // ⭐ Initialize navigate
+  const { setThemeColor, THEME_PRESETS } = useThemeManager();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -23,6 +26,7 @@ export default function CompanySettingsPage({ user }) {
     phoneNumber: '',
     fullAddress: '',
     industry: '',
+    themeColor: 'indigo',
     workingDays: [],
     workingHours: { start: '09:00', end: '17:00' },
     breakTimings: { start: '13:00', end: '14:00' },
@@ -48,6 +52,7 @@ export default function CompanySettingsPage({ user }) {
           phoneNumber: data.phoneNumber || '',
           fullAddress: data.fullAddress || '',
           industry: data.industry || '',
+          themeColor: data.themeColor || 'indigo',
           workingDays: data.workingDays || [],
           workingHours: data.workingHours || { start: '09:00', end: '17:00' },
           breakTimings: data.breakTimings || { start: '13:00', end: '14:00' },
@@ -120,6 +125,12 @@ export default function CompanySettingsPage({ user }) {
     }
   };
 
+  const handleThemeChange = (color) => {
+    if (!canEdit) return;
+    setFormData(prev => ({ ...prev, themeColor: color }));
+    setThemeColor(color); // Provide live preview of the theme
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -133,6 +144,7 @@ export default function CompanySettingsPage({ user }) {
       submitData.append('workingHours', JSON.stringify(formData.workingHours));
       submitData.append('breakTimings', JSON.stringify(formData.breakTimings));
       submitData.append('holidays', JSON.stringify(formData.holidays));
+      submitData.append('themeColor', formData.themeColor);
 
       if (logoFile) submitData.append('logo', logoFile);
 
@@ -207,14 +219,17 @@ export default function CompanySettingsPage({ user }) {
 
         <div className="flex gap-4">
           {canEdit && (
-            <button
+            <Button
               onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2.5 px-6 py-3.5 bg-blue-600 text-white rounded-2xl font-black text-sm hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 dark:shadow-none animate-in fade-in zoom-in-95 duration-200 active:scale-95 disabled:opacity-50"
+              isLoading={saving}
+              colorScheme="brand"
+              size="lg"
+              rounded="2xl"
+              shadow="md"
+              leftIcon={!saving && <Save size={18} />}
             >
-              {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
               Save Changes
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -297,6 +312,29 @@ export default function CompanySettingsPage({ user }) {
                 <div><label className={labelClass}><Phone size={12} /> Phone</label><input type="text" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} disabled={!canEdit} className={inputClass} /></div>
               </div>
               <div><label className={labelClass}><MapPin size={12} /> Full Address</label><textarea name="fullAddress" value={formData.fullAddress} onChange={handleChange} disabled={!canEdit} rows="3" className={`${inputClass} resize-none`} /></div>
+              
+              {/* THEME BRAND COLOR SELECTOR */}
+              <div className="pt-2">
+                <label className={labelClass}>Brand Color</label>
+                <div className="flex gap-3 flex-wrap mt-3">
+                  {Object.keys(THEME_PRESETS).map(color => {
+                    const isActive = formData.themeColor === color;
+                    return (
+                      <button
+                        key={color}
+                        type="button"
+                        disabled={!canEdit}
+                        onClick={() => handleThemeChange(color)}
+                        className={`w-8 h-8 rounded-full shadow-sm flex items-center justify-center transition-all disabled:cursor-not-allowed ${
+                          isActive ? 'ring-offset-2 ring-2 ring-gray-400 dark:ring-gray-500 scale-110' : 'hover:scale-110 opacity-80'
+                        }`}
+                        style={{ backgroundColor: THEME_PRESETS[color]?.[500] || '#8b63f1' }}
+                        title={color.charAt(0).toUpperCase() + color.slice(1)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </div>

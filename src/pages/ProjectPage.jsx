@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader, FolderKanban, Users, ShieldAlert } from 'lucide-react';
+import { Loader, FolderKanban, Users, ShieldAlert, MessageSquare } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
@@ -118,6 +118,17 @@ export default function ProjectPage({ user }) {
     navigate("/projects/create");
   };
 
+  const openProjectChat = async (projectId) => {
+    // Navigate to global chat with a special state or param.
+    // Or we can just ensure the project conversation exists by hitting api, then go to chat
+    try {
+       await API.post('/chat/conversations', { projectId });
+       navigate('/chat'); // User can then select the project chat from the recent conversations list
+    } catch (err) {
+       setFeedback({ type: 'error', message: "Failed to open project chat" });
+    }
+  };
+
   const filteredProjects = useMemo(() => {
     return projects.filter(project => 
       project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -211,7 +222,14 @@ export default function ProjectPage({ user }) {
                   </div>
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-1">
+                  <div className="flex justify-end gap-1 items-center">
+                    <button 
+                      onClick={() => openProjectChat(project._id)}
+                      title="Project Chat"
+                      className="p-1.5 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/30 rounded-md transition-colors"
+                    >
+                      <MessageSquare size={16} />
+                    </button>
                     {can('projects_update') && <EditButton onClick={() => navigate(`/projects/edit/${project._id}`)} />}
                     {can('projects_delete') && <DeleteButton onClick={() => openDeleteModal(project._id)} />}
                   </div>
