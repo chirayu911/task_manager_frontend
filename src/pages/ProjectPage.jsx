@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { FolderKanban, Users, ShieldAlert, MessageSquare } from 'lucide-react';
 import { Box, SimpleGrid } from '@chakra-ui/react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { TableSkeleton, PageHeaderSkeleton, CardSkeleton } from '../components/SkeletonLoaders';
+import { PageHeaderSkeleton, CardSkeleton } from '../components/SkeletonLoaders';
 import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronDown, FolderKanban, Building2, Bell } from 'lucide-react';
+import { ChevronDown, FolderKanban, Bell } from 'lucide-react';
 import {
   Flex, Box, Menu, MenuButton, MenuList, MenuItem,
   Button, IconButton, Text, useColorModeValue
@@ -48,19 +48,13 @@ export default function Navbar({
   }, [user, fetchProjects, fetchCompanies, isSystemAdmin]);
 
   const activeProject = projectList.find(p => p._id === activeProjectId);
-  const activeCompany = companyList.find(c => c._id === activeCompanyId);
 
   // Theme-aware colors
   const bg = useColorModeValue('white', 'gray.900');
   const border = useColorModeValue('gray.200', 'gray.700');
   const hoverBg = useColorModeValue('brand.50', 'whiteAlpha.100');
   const hoverIconColor = useColorModeValue('brand.600', 'brand.300');
-  const adminIconBg = useColorModeValue('purple.50', 'purple.900');
   const projectIconBg = useColorModeValue('brand.50', 'brand.900');
-  const adminMenuBgActive = useColorModeValue('purple.50', 'whiteAlpha.100');
-  const adminMenuColorActive = useColorModeValue('purple.500', 'purple.300');
-  const adminMenuHoverBg = useColorModeValue('purple.50', 'whiteAlpha.100');
-  const adminMenuHoverColor = useColorModeValue('purple.600', 'purple.300');
 
   return (
     <Flex

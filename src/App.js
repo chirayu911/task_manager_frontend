@@ -44,7 +44,6 @@ import MainLayout from "./components/MainLayout";
 import Notification from "./components/Notification";
 
 // Chakra UI
-import { Flex, Text } from "@chakra-ui/react";
 import { useThemeManager } from "./context/ThemeLoader";
 import { AppInitializationSkeleton } from "./components/SkeletonLoaders";
 
