@@ -12,7 +12,6 @@ export default function Navbar({
 }) {
   const navigate = useNavigate();
   const [projectList, setProjectList] = useState([]);
-  const [companyList, setCompanyList] = useState([]);
 
   const roleName = typeof user?.role === 'object' ? user.role?.name : user?.role;
   const isSystemAdmin = roleName === 'admin' || roleName === 'superadmin';
@@ -33,7 +32,6 @@ export default function Navbar({
     if (!isSystemAdmin) return;
     try {
       const { data } = await API.get('/company/all');
-      setCompanyList(data || []);
       if (!activeCompanyId) setActiveCompanyId('all');
     } catch (err) {
       console.error("Navbar: Failed to load companies", err);
