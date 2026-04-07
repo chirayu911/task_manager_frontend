@@ -38,7 +38,6 @@ export default function BulkUploadModal({ isOpen, onClose, activeProjectId, type
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
 
-        const itemType = type === 'issue' ? 'Issue' : 'Task';
         const parsed = jsonData
           .filter(row => row.Title || row.title) 
           .map(row => ({

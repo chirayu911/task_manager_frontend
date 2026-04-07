@@ -312,7 +312,7 @@ export default function CompanySettingsPage({ user }) {
                 <div><label className={labelClass}><Phone size={12} /> Phone</label><input type="text" name="phoneNumber" value={formData.phoneNumber} onChange={handleChange} disabled={!canEdit} className={inputClass} /></div>
               </div>
               <div><label className={labelClass}><MapPin size={12} /> Full Address</label><textarea name="fullAddress" value={formData.fullAddress} onChange={handleChange} disabled={!canEdit} rows="3" className={`${inputClass} resize-none`} /></div>
-              
+
               {/* THEME BRAND COLOR SELECTOR */}
               <div className="pt-2">
                 <label className={labelClass}>Brand Color</label>
@@ -325,9 +325,8 @@ export default function CompanySettingsPage({ user }) {
                         type="button"
                         disabled={!canEdit}
                         onClick={() => handleThemeChange(color)}
-                        className={`w-8 h-8 rounded-full shadow-sm flex items-center justify-center transition-all disabled:cursor-not-allowed ${
-                          isActive ? 'ring-offset-2 ring-2 ring-gray-400 dark:ring-gray-500 scale-110' : 'hover:scale-110 opacity-80'
-                        }`}
+                        className={`w-8 h-8 rounded-full shadow-sm flex items-center justify-center transition-all disabled:cursor-not-allowed ${isActive ? 'ring-offset-2 ring-2 ring-gray-400 dark:ring-gray-500 scale-110' : 'hover:scale-110 opacity-80'
+                          }`}
                         style={{ backgroundColor: THEME_PRESETS[color]?.[500] || '#8b63f1' }}
                         title={color.charAt(0).toUpperCase() + color.slice(1)}
                       />

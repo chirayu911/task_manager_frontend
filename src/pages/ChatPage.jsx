@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Flex, Text, VStack, Avatar, useColorModeValue, Heading, IconButton, Button, Spinner, useDisclosure, Badge } from '@chakra-ui/react';
+import { Box, Flex, Text, VStack, Avatar, useColorModeValue, Heading, Button, useDisclosure, Badge } from '@chakra-ui/react';
 import { MessageSquare, Plus, Crown } from 'lucide-react';
 import API from '../api';
 import ChatBox from '../components/ChatBox';
@@ -11,7 +11,7 @@ export default function ChatPage({ user }) {
   const [owner, setOwner] = useState(null);
   const [startingOwnerChat, setStartingOwnerChat] = useState(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
-  
+
   const bg = useColorModeValue('white', 'gray.800');
   const border = useColorModeValue('gray.200', 'gray.700');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
@@ -70,12 +70,12 @@ export default function ChatPage({ user }) {
 
   const handleConversationClick = async (conv) => {
     setActiveConversation(conv);
-    
+
     // Mark as read if there are unread messages
     if (conv.unreadCount > 0) {
       try {
         await API.put(`/chat/messages/${conv._id}/read`);
-        setConversations(prev => prev.map(c => 
+        setConversations(prev => prev.map(c =>
           c._id === conv._id ? { ...c, unreadCount: 0 } : c
         ));
         // Tell the Sidebar to refresh its unread count
@@ -93,18 +93,18 @@ export default function ChatPage({ user }) {
       </Heading>
 
       <Flex h="calc(100vh - 120px)" bg={bg} rounded="2xl" shadow="sm" border="1px solid" borderColor={border} overflow="hidden">
-        
+
         {/* Sidebar Sidebar */}
         <Box w="320px" borderRight="1px solid" borderColor={border} flexShrink={0}>
           <Flex p={4} borderBottom="1px solid" borderColor={border} align="center" justify="space-between" flexWrap="wrap" gap={2}>
             <Text fontWeight="bold" fontSize="lg">Recent</Text>
-            <Button 
-               leftIcon={<Plus size={14} />} 
-               size="xs" 
-               colorScheme="brand" 
-               variant="outline" 
-               onClick={onOpen} 
-               borderRadius="full"
+            <Button
+              leftIcon={<Plus size={14} />}
+              size="xs"
+              colorScheme="brand"
+              variant="outline"
+              onClick={onOpen}
+              borderRadius="full"
             >
               New Chat / Group
             </Button>
@@ -119,9 +119,9 @@ export default function ChatPage({ user }) {
                 const isActive = activeConversation?._id === conv._id;
 
                 return (
-                  <Flex 
-                    key={conv._id} 
-                    p={4} 
+                  <Flex
+                    key={conv._id}
+                    p={4}
                     cursor="pointer"
                     bg={isActive ? hoverBg : 'transparent'}
                     _hover={{ bg: hoverBg }}
@@ -183,14 +183,14 @@ export default function ChatPage({ user }) {
         {/* Chat Area */}
         <Box flex={1} position="relative" h="full">
           {activeConversation ? (
-            <ChatBox 
-              conversationId={activeConversation._id} 
+            <ChatBox
+              conversationId={activeConversation._id}
               activeConversation={activeConversation}
-              currentUser={user} 
-              // onAddClient is mostly for project chat, but can be passed
+              currentUser={user}
+            // onAddClient is mostly for project chat, but can be passed
             />
           ) : (
-          <Flex h="full" direction="column" align="center" justify="center" color="gray.500" gap={4}>
+            <Flex h="full" direction="column" align="center" justify="center" color="gray.500" gap={4}>
               <MessageSquare size={48} opacity={0.2} />
               <Text>Select a conversation to start chatting</Text>
               {!user?.isCompanyOwner && owner && (
@@ -214,19 +214,19 @@ export default function ChatPage({ user }) {
 
       </Flex>
 
-      <NewChatModal 
-         isOpen={isOpen} 
-         onClose={onClose} 
-         currentUser={user}
-         onChatCreated={(newConv) => {
-            // Check if it already exists in the list to avoid duplicates
-            setConversations(prev => {
-              const exists = prev.find(c => c._id === newConv._id);
-              if (exists) return prev;
-              return [newConv, ...prev];
-            });
-            setActiveConversation(newConv);
-         }}
+      <NewChatModal
+        isOpen={isOpen}
+        onClose={onClose}
+        currentUser={user}
+        onChatCreated={(newConv) => {
+          // Check if it already exists in the list to avoid duplicates
+          setConversations(prev => {
+            const exists = prev.find(c => c._id === newConv._id);
+            if (exists) return prev;
+            return [newConv, ...prev];
+          });
+          setActiveConversation(newConv);
+        }}
       />
     </Box>
   );

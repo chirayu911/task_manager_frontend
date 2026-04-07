@@ -8,7 +8,7 @@ import {
   Server, MessageSquare, PieChart
 } from "lucide-react";
 import {
-  Flex, Box, Text, VStack, Collapse, Icon, useColorModeValue, Menu, MenuButton, MenuList, MenuItem, MenuDivider, Button, Image, Badge
+  Flex, Box, Text, VStack, Collapse, Icon, useColorModeValue, Menu, MenuButton, MenuList, Button, Image, Badge
 } from "@chakra-ui/react";
 import ConfirmModal from "./ConfirmModal";
 import EditProfileModal from "./EditProfileModal";

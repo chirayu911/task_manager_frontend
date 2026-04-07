@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
-  Save, ArrowLeft, Loader, Search, X,
-  Users, Trash2, Zap, Lock, Plus, ShieldCheck, FileText, ChevronRight
+  ArrowLeft, Loader, Search, X,
+  Users, Trash2, Plus, ShieldCheck
 } from 'lucide-react';
 import TextEditor from '../components/TextEditor';
 import API from '../api';
@@ -43,7 +43,7 @@ export default function CreateDocument({ user, activeProjectId, notify }) {
 
   const [pages, setPages] = useState(['']);
   const [activePageIndex, setActivePageIndex] = useState(0);
-  const [documentData, setDocumentData] = useState(null);
+  const [, setDocumentData] = useState(null);
 
   const [hasPermission, setHasPermission] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -69,8 +69,6 @@ export default function CreateDocument({ user, activeProjectId, notify }) {
   // A4 page: 297mm tall, 20mm padding top+bottom = 257mm content area.
   // At 96dpi: 1mm = 3.7795px → 257mm ≈ 971px. This is the hard page overflow limit.
   const A4_CONTENT_HEIGHT_PX = 971;
-  // Warn the ring indicator when content is 80%+ of height
-  const A4_WARN_HEIGHT_PX = A4_CONTENT_HEIGHT_PX * 0.8; // ~777px
 
   // Refs to each page's ck-page-container div — used for real height measurement
   const pageContainerRefs = useRef([]);
@@ -141,7 +139,7 @@ export default function CreateDocument({ user, activeProjectId, notify }) {
     } finally {
       setLoading(false);
     }
-  }, [id, user?._id, notify]);
+  }, [id, user?._id, user?.id, notify]);
 
   useEffect(() => {
     const initProjectData = async () => {
@@ -236,9 +234,6 @@ export default function CreateDocument({ user, activeProjectId, notify }) {
 
     // Content overflows — we need to split at the element that caused the overflow
     const pageContent = pages[activePageIndex];
-    const allLines = pageContent.split(/(?=<p|<h[1-6]|<li|<br|<div)/i);
-    let builtHeight = 0;
-    let splitLineIndex = allLines.length - 1;
 
     // Estimate split point by proportion: ratio of A4 height vs overflow height
     const splitRatio = A4_CONTENT_HEIGHT_PX / contentHeight;
@@ -683,21 +678,21 @@ export default function CreateDocument({ user, activeProjectId, notify }) {
         .border-primary-400 { border-color: var(--brand-400) !important; }
         .border-primary-500 { border-color: var(--brand-500) !important; }
 
-        .ring-primary-500\/20 { --tw-ring-color: color-mix(in srgb, var(--brand-500) 20%, transparent) !important; }
-        .shadow-primary-600\/20 { --tw-shadow-color: color-mix(in srgb, var(--brand-600) 20%, transparent) !important; }
-        .shadow-primary-600\/30 { --tw-shadow-color: color-mix(in srgb, var(--brand-600) 30%, transparent) !important; }
+        .ring-primary-500\\/20 { --tw-ring-color: color-mix(in srgb, var(--brand-500) 20%, transparent) !important; }
+        .shadow-primary-600\\/20 { --tw-shadow-color: color-mix(in srgb, var(--brand-600) 20%, transparent) !important; }
+        .shadow-primary-600\\/30 { --tw-shadow-color: color-mix(in srgb, var(--brand-600) 30%, transparent) !important; }
 
-        .hover\:bg-primary-50:hover   { background-color: var(--brand-50)  !important; }
-        .hover\:bg-primary-500:hover  { background-color: var(--brand-500) !important; }
-        .hover\:text-primary-600:hover { color: var(--brand-600) !important; }
-        .hover\:border-primary-400:hover { border-color: var(--brand-400) !important; }
-        .focus\:border-primary-500:focus { border-color: var(--brand-500) !important; }
+        .hover\\:bg-primary-50:hover   { background-color: var(--brand-50)  !important; }
+        .hover\\:bg-primary-500:hover  { background-color: var(--brand-500) !important; }
+        .hover\\:text-primary-600:hover { color: var(--brand-600) !important; }
+        .hover\\:border-primary-400:hover { border-color: var(--brand-400) !important; }
+        .focus\\:border-primary-500:focus { border-color: var(--brand-500) !important; }
 
-        .dark .dark\:bg-primary-950\/40  { background-color: color-mix(in srgb, var(--brand-900) 40%, transparent) !important; }
-        .dark .dark\:text-primary-100    { color: var(--brand-100) !important; }
-        .dark .dark\:text-primary-400    { color: var(--brand-400) !important; }
-        .dark .dark\:border-primary-900\/40 { border-color: color-mix(in srgb, var(--brand-900) 40%, transparent) !important; }
-        .dark .dark\:hover\:bg-primary-900\/20:hover { background-color: color-mix(in srgb, var(--brand-900) 20%, transparent) !important; }
+        .dark .dark\\:bg-primary-950\\/40  { background-color: color-mix(in srgb, var(--brand-900) 40%, transparent) !important; }
+        .dark .dark\\:text-primary-100    { color: var(--brand-100) !important; }
+        .dark .dark\\:text-primary-400    { color: var(--brand-400) !important; }
+        .dark .dark\\:border-primary-900\\/40 { border-color: color-mix(in srgb, var(--brand-900) 40%, transparent) !important; }
+        .dark .dark\\:hover\\:bg-primary-900\\/20:hover { background-color: color-mix(in srgb, var(--brand-900) 20%, transparent) !important; }
       `}</style>
     </div>
   );

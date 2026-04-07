@@ -291,9 +291,9 @@ export default function TaskFormPage({ user, activeProjectId }) {
       newErrors.title = "Title contains invalid characters.";
     }
 
-    // ⭐ Require Start Date & Hours
-    if (!formData.startDate) newErrors.startDate = "Start date is required.";
-    if (!formData.hours) newErrors.hours = "Estimated hours are required.";
+    // Optional Start Date & Hours
+    // if (!formData.startDate) newErrors.startDate = "Start date is required.";
+    // if (!formData.hours) newErrors.hours = "Estimated hours are required.";
 
     if (formData.description) {
       const sqlPattern = /(--|;|UNION\s+SELECT|DROP\s+TABLE|INSERT\s+INTO|DELETE\s+FROM|UPDATE\s+[A-Za-z]+\s+SET|EXEC(\s|\())/i;
@@ -302,10 +302,13 @@ export default function TaskFormPage({ user, activeProjectId }) {
       }
     }
 
+    // Media is now optional
+    /*
     if (images.length === 0 && existingImages.length === 0 && videos.length === 0 && existingVideos.length === 0) {
       setNotification({ type: 'error', message: "At least one photo or video is mandatory!" });
       return false;
     }
+    */
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -350,7 +353,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
       if (isIssueMode) data.append('priority', formData.priority);
       
       const mentionedIds = staffList
-        .filter(s => formData.description.includes(`@${s.name}`))
+        .filter(s => formData.description.toLowerCase().includes(`@${s.name.toLowerCase()}`))
         .map(s => s._id);
       data.append('mentionedUsers', JSON.stringify(mentionedIds));
 
@@ -479,7 +482,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
         {/* ============================== */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-gray-100 dark:border-gray-700">
             <div className="space-y-2">
-              <label className={labelStyle}><Calendar size={14}/> Start Date <span className="text-red-500">*</span></label>
+              <label className={labelStyle}><Calendar size={14}/> Start Date <span className="text-red-500"></span></label>
               <input 
                 type="datetime-local" 
                 className={`w-full p-4 border rounded-2xl font-bold text-sm outline-none transition-all text-gray-900 dark:text-white ${errors.startDate ? 'border-red-500' : inputActiveStyle} ${isViewMode && inputDisabledStyle}`}
@@ -489,7 +492,6 @@ export default function TaskFormPage({ user, activeProjectId }) {
                   if (errors.startDate) setErrors(prev => ({ ...prev, startDate: null }));
                 }}
                 disabled={isViewMode}
-                required
               />
               {errors.startDate && <p className="text-red-500 text-xs font-bold ml-1">{errors.startDate}</p>}
             </div>
@@ -508,7 +510,6 @@ export default function TaskFormPage({ user, activeProjectId }) {
                   if (errors.hours) setErrors(prev => ({ ...prev, hours: null }));
                 }}
                 disabled={isViewMode}
-                required
               />
               {errors.hours && <p className="text-red-500 text-xs font-bold ml-1">{errors.hours}</p>}
             </div>
@@ -597,6 +598,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
                   value={formData.assignedTo} 
                   onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
                   disabled={isViewMode}
+                  required
                 >
                   <option value="">Unassigned</option>
                   {staffList.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
@@ -630,7 +632,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
           
           <div className="space-y-4">
             <h3 className={labelStyle}>
-              <ImageIcon size={16}/> Photos (Max 5MB, Max 5 Files) <span className="text-red-500">*</span>
+              <ImageIcon size={16}/> Photos (Max 5MB, Max 5 Files)
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               
@@ -668,7 +670,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
           <div className="space-y-4 pt-6">
             <h3 className={labelStyle}>
-              <Video size={16}/> Videos (Max 50MB, Max 3 Files) <span className="text-red-500">*</span>
+              <Video size={16}/> Videos (Max 50MB, Max 3 Files)
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               

@@ -25,21 +25,22 @@ export function useTasks(user, socket, isAdmin, can, setFeedback, activeProjectI
    * 1. Fetch data with Pagination and Type Filtering
    * Wrapped in useCallback to prevent "fetchTasks is not a function" errors in useEffect
    */
-  const fetchTasks = useCallback(async (page = 1, limit = 10) => {
+  const fetchTasks = useCallback(async (page = 1, limit = 10, filterMode = 'all_tasks') => {
     // Guard: Requirement for project selection
     if (!user || !activeProjectId) return;
 
     try {
       setPageLoading(true);
-      
+
       // We pass BOTH the project ID and the itemType (Task/Issue) to the backend
       const [tasksRes, statusesRes, teamRes] = await Promise.all([
         API.get(`/tasks`, {
-          params: { 
-            project: activeProjectId, 
+          params: {
+            project: activeProjectId,
             itemType: itemType, // ⭐ Tells backend exactly what to fetch
-            page, 
-            limit 
+            page,
+            limit,
+            filterMode // ⭐ Pass the filter mode to the backend
           }
         }),
         API.get(`/task-statuses?project=${activeProjectId}`),
@@ -47,13 +48,13 @@ export function useTasks(user, socket, isAdmin, can, setFeedback, activeProjectI
       ]);
 
       // Map response to state
-      setTasks(tasksRes.data.tasks || []); 
+      setTasks(tasksRes.data.tasks || []);
       setTotalItems(tasksRes.data.totalItems || 0);
       setTotalPages(tasksRes.data.totalPages || 1);
 
       // Only show active statuses
       setStatusList(statusesRes.data.filter(s => s.status === 'active'));
-      
+
       // Extract team members
       const teamMembers = teamRes.data.team || teamRes.data;
       setStaffList(teamMembers.filter(u => (u.role?.name || u.role) !== 'customer'));
@@ -67,8 +68,8 @@ export function useTasks(user, socket, isAdmin, can, setFeedback, activeProjectI
   }, [user, activeProjectId, itemType, setFeedback]);
 
   // Initial fetch on mount
-  useEffect(() => { 
-    fetchTasks(); 
+  useEffect(() => {
+    fetchTasks();
   }, [fetchTasks]);
 
   /**
@@ -92,7 +93,7 @@ export function useTasks(user, socket, isAdmin, can, setFeedback, activeProjectI
           setTasks((prev) => prev.filter((t) => t._id !== updatedItem._id));
           setTotalItems(prev => prev - 1);
         } else {
-          setTasks((prev) => 
+          setTasks((prev) =>
             prev.map((t) => (t._id === updatedItem._id ? updatedItem : t))
           );
         }
@@ -122,10 +123,10 @@ export function useTasks(user, socket, isAdmin, can, setFeedback, activeProjectI
     try {
       // Immediate UI update
       setTasks(prev => prev.map(t => t._id === taskId ? { ...t, [field]: value } : t));
-      
+
       // API call
       await API.put(`/tasks/${taskId}`, { [field]: value });
-      
+
       setFeedback({ type: 'success', message: "Updated successfully" });
       setTimeout(() => setFeedback({ type: '', message: '' }), 2000);
     } catch (err) {
@@ -135,12 +136,12 @@ export function useTasks(user, socket, isAdmin, can, setFeedback, activeProjectI
   };
 
   // ⭐ Critical: Return fetchTasks so TaskPage.jsx can call it
-  return { 
-    tasks, 
-    setTasks, 
-    staffList, 
-    statusList, 
-    pageLoading, 
+  return {
+    tasks,
+    setTasks,
+    staffList,
+    statusList,
+    pageLoading,
     handleInlineUpdate,
     fetchTasks,      // Fixes the "fetchTasks is not a function" error
     totalItems,

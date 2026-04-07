@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box, Flex, Text, Heading, useColorModeValue, Spinner,
+  Box, Flex, Text, Heading, useColorModeValue,
   Tabs, TabList, TabPanels, Tab, TabPanel, SimpleGrid, Icon
 } from '@chakra-ui/react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { PieChart, ListChecks, AlertTriangle } from 'lucide-react';
+import { ChartSkeleton, PageHeaderSkeleton } from '../components/SkeletonLoaders';
 import API from '../api';
 
 export default function ReportsPage({ activeProjectId }) {
@@ -13,14 +14,13 @@ export default function ReportsPage({ activeProjectId }) {
 
   const bg = useColorModeValue('white', 'gray.800');
   const border = useColorModeValue('gray.200', 'gray.700');
-  const cardBg = useColorModeValue('gray.50', 'gray.900');
   const textColor = useColorModeValue('gray.600', 'gray.400');
 
   useEffect(() => {
     async function fetchReports() {
       if (!activeProjectId) {
-         setLoading(false);
-         return;
+        setLoading(false);
+        return;
       }
       setLoading(true);
       try {
@@ -37,9 +37,13 @@ export default function ReportsPage({ activeProjectId }) {
 
   if (loading) {
     return (
-      <Flex h="100vh" align="center" justify="center">
-        <Spinner size="xl" color="brand.500" />
-      </Flex>
+      <Box p={6} maxW="7xl" mx="auto">
+        <PageHeaderSkeleton />
+        <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={6}>
+          <ChartSkeleton />
+          <ChartSkeleton />
+        </SimpleGrid>
+      </Box>
     );
   }
 
@@ -64,7 +68,7 @@ export default function ReportsPage({ activeProjectId }) {
   return (
     <Box p={6} maxW="7xl" mx="auto">
       <Heading size="lg" mb={2} display="flex" alignItems="center" gap={3}>
-        <Icon as={PieChart} color="brand.500" /> 
+        <Icon as={PieChart} color="brand.500" />
         Company Reports
       </Heading>
       <Text color={textColor} mb={8}>
@@ -94,7 +98,7 @@ export default function ReportsPage({ activeProjectId }) {
                       <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                       <XAxis dataKey="name" fontSize={12} tickLine={false} />
                       <YAxis allowDecimals={false} />
-                      <RechartsTooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}} />
+                      <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                       <Legend />
                       <Bar dataKey="count" name="Number of Tasks" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={40} />
                     </BarChart>
@@ -110,14 +114,14 @@ export default function ReportsPage({ activeProjectId }) {
                     <AreaChart data={data.timeline || []} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                       <defs>
                         <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                       <XAxis dataKey="date" fontSize={12} tickLine={false} />
                       <YAxis allowDecimals={false} />
-                      <RechartsTooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}} />
+                      <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                       <Legend />
                       <Area type="monotone" dataKey="ActiveTasks" name="Active Tasks Over Time" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorTasks)" />
                     </AreaChart>
@@ -139,7 +143,7 @@ export default function ReportsPage({ activeProjectId }) {
                       <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                       <XAxis dataKey="name" fontSize={12} tickLine={false} />
                       <YAxis allowDecimals={false} />
-                      <RechartsTooltip cursor={{fill: 'transparent'}} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}} />
+                      <RechartsTooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                       <Legend />
                       <Bar dataKey="count" name="Number of Issues" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={40} />
                     </BarChart>
@@ -155,14 +159,14 @@ export default function ReportsPage({ activeProjectId }) {
                     <AreaChart data={data.timeline || []} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                       <defs>
                         <linearGradient id="colorIssues" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                       <XAxis dataKey="date" fontSize={12} tickLine={false} />
                       <YAxis allowDecimals={false} />
-                      <RechartsTooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)'}} />
+                      <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                       <Legend />
                       <Area type="monotone" dataKey="ActiveIssues" name="Active Issues Over Time" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorIssues)" />
                     </AreaChart>

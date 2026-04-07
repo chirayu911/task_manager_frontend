@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  History, Server, Activity, User, Eye, Box, AlertCircle
+  Server, User, Eye
 } from 'lucide-react';
 import API from '../api';
 import moment from 'moment';
 import {
-  Box as ChakraBox, Flex, Text, VStack, HStack, Badge, useColorModeValue,
+  Box as ChakraBox, Flex, Text, HStack, Badge, useColorModeValue,
   Spinner, Heading, Icon, Table, Thead, Tbody, Tr, Th, Td,
   Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton, ModalBody,
   Button, Select, useDisclosure, Grid

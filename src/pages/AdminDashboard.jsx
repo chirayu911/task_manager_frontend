@@ -47,8 +47,8 @@ export default function AdminDashboard({ user }) {
             Real-time subscription usage for your organization.
           </Text>
         </Box>
-        <Flex 
-          bg={badgeBg} color="white" px={4} py={2} rounded="xl" align="center" gap={2} 
+        <Flex
+          bg={badgeBg} color="white" px={4} py={2} rounded="xl" align="center" gap={2}
           shadow="lg"
         >
           <Icon as={Zap} boxSize={5} />
@@ -59,32 +59,32 @@ export default function AdminDashboard({ user }) {
       </Flex>
 
       <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6}>
-        <UsageCard 
-          title="Staff Members" 
-          current={usage?.staff?.current || 0} 
-          Maxlimit={usage?.staff?.max || 0} 
-          icon={Users} 
+        <UsageCard
+          title="Staff Members"
+          current={usage?.staff?.current || 0}
+          Maxlimit={usage?.staff?.max || 0}
+          icon={Users}
         />
-        <UsageCard 
-          title="Total Projects" 
-          current={usage?.projects?.current || 0} 
-          Maxlimit={usage?.projects?.max || 0} 
-          icon={FolderKanban} 
+        <UsageCard
+          title="Total Projects"
+          current={usage?.projects?.current || 0}
+          Maxlimit={usage?.projects?.max || 0}
+          icon={FolderKanban}
         />
-        <UsageCard 
-          title="Active Tasks" 
-          current={usage?.tasks?.current || 0} 
-          Maxlimit={usage?.tasks?.max || 0} 
-          icon={ClipboardList} 
+        <UsageCard
+          title="Active Tasks"
+          current={usage?.tasks?.current || 0}
+          Maxlimit={usage?.tasks?.max || 0}
+          icon={ClipboardList}
         />
-        <UsageCard 
-          title="Documents" 
-          current={usage?.documents?.current || 0} 
-          Maxlimit={usage?.documents?.max || 0} 
-          icon={FileText} 
+        <UsageCard
+          title="Documents"
+          current={usage?.documents?.current || 0}
+          Maxlimit={usage?.documents?.max || 0}
+          icon={FileText}
         />
       </SimpleGrid>
-      
+
       {/* Rest of your dashboard (Charts, Recent Activity, etc.) */}
     </Box>
   );

@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronDown, FolderKanban, Building2, Bell } from 'lucide-react';
-import { 
-  Flex, Box, Menu, MenuButton, MenuList, MenuItem, 
-  Button, IconButton, Text, useColorModeValue 
+import {
+  Flex, Box, Menu, MenuButton, MenuList, MenuItem,
+  Button, IconButton, Text, useColorModeValue
 } from '@chakra-ui/react';
 import API from '../api';
 
-export default function Navbar({ 
-  user, activeProjectId, setActiveProjectId, activeCompanyId, setActiveCompanyId 
+export default function Navbar({
+  user, activeProjectId, setActiveProjectId, activeCompanyId, setActiveCompanyId
 }) {
   const navigate = useNavigate();
   const [projectList, setProjectList] = useState([]);
   const [companyList, setCompanyList] = useState([]);
-  
+
   const roleName = typeof user?.role === 'object' ? user.role?.name : user?.role;
   const isSystemAdmin = roleName === 'admin' || roleName === 'superadmin';
 
@@ -30,11 +30,11 @@ export default function Navbar({
   }, [activeProjectId, setActiveProjectId]);
 
   const fetchCompanies = useCallback(async () => {
-    if (!isSystemAdmin) return; 
+    if (!isSystemAdmin) return;
     try {
       const { data } = await API.get('/company/all');
       setCompanyList(data || []);
-      if (!activeCompanyId) setActiveCompanyId('all'); 
+      if (!activeCompanyId) setActiveCompanyId('all');
     } catch (err) {
       console.error("Navbar: Failed to load companies", err);
     }
@@ -63,19 +63,19 @@ export default function Navbar({
   const adminMenuHoverColor = useColorModeValue('purple.600', 'purple.300');
 
   return (
-    <Flex 
-      as="nav" 
+    <Flex
+      as="nav"
       position="fixed" top="0" left="64" w="calc(100% - 16rem)" h="16" zIndex="100"
-      bg={bg} borderBottom="1px solid" borderColor={border} 
+      bg={bg} borderBottom="1px solid" borderColor={border}
       align="center" justify="flex-end" px="6" gap="4"
       boxShadow="sm" transition="all 0.3s ease-in-out"
     >
       <Box h="8" w="1px" bg={border} mx="2" />
 
       {/* SYSTEM ADMIN ONLY: Company Selector */}
-      {isSystemAdmin && (
+      {/* {isSystemAdmin && (
         <Menu autoSelect={false}>
-          <MenuButton 
+          <MenuButton
             as={Button} variant="ghost" pl="2" pr="4" py="6" rounded="xl"
             _hover={{ bg: hoverBg, color: hoverIconColor, transform: 'translateY(-2px)' }}
             transition="all 0.2s"
@@ -92,8 +92,8 @@ export default function Navbar({
               <ChevronDown size={16} />
             </Flex>
           </MenuButton>
-          
-          <MenuList 
+
+          <MenuList
             minW="280px" rounded="2xl" shadow="2xl" border="1px" borderColor={border} p="2"
             animation="slideInBottom 0.2s ease-out"
           >
@@ -102,9 +102,9 @@ export default function Navbar({
                 Available Organizations
               </Text>
             </Box>
-            
-            <MenuItem 
-              onClick={() => setActiveCompanyId('all')} 
+
+            <MenuItem
+              onClick={() => setActiveCompanyId('all')}
               rounded="xl" py="3" px="4" mb="1"
               bg={activeCompanyId === 'all' ? adminMenuBgActive : 'transparent'}
               color={activeCompanyId === 'all' ? adminMenuColorActive : 'inherit'}
@@ -113,11 +113,11 @@ export default function Navbar({
             >
               Global (All Companies)
             </MenuItem>
-            
+
             {companyList.map((company) => (
-              <MenuItem 
+              <MenuItem
                 key={company._id}
-                onClick={() => setActiveCompanyId(company._id)} 
+                onClick={() => setActiveCompanyId(company._id)}
                 rounded="xl" py="3" px="4" mb="1"
                 bg={activeCompanyId === company._id ? adminMenuBgActive : 'transparent'}
                 color={activeCompanyId === company._id ? adminMenuColorActive : 'inherit'}
@@ -129,11 +129,11 @@ export default function Navbar({
             ))}
           </MenuList>
         </Menu>
-      )}
+      )} */}
 
       {/* Project Selector */}
       <Menu autoSelect={false}>
-        <MenuButton 
+        <MenuButton
           as={Button} variant="ghost" pl="2" pr="4" py="6" rounded="xl"
           _hover={{ bg: hoverBg, color: hoverIconColor, transform: 'translateY(-2px)' }}
           transition="all 0.2s"
@@ -156,7 +156,7 @@ export default function Navbar({
           </Flex>
         </MenuButton>
 
-        <MenuList 
+        <MenuList
           minW="280px" rounded="2xl" shadow="2xl" border="1px" borderColor={border} p="2"
         >
           <Flex px="4" py="2" justify="space-between" align="center" borderBottom="1px" borderColor={border} mb="2">
@@ -167,12 +167,12 @@ export default function Navbar({
               Manage All
             </Text>
           </Flex>
-          
+
           {projectList.length > 0 ? (
             projectList.map((project) => (
-              <MenuItem 
+              <MenuItem
                 key={project._id}
-                onClick={() => setActiveProjectId(project._id)} 
+                onClick={() => setActiveProjectId(project._id)}
                 rounded="xl" py="3" px="4" mb="1"
                 bg={activeProjectId === project._id ? hoverBg : 'transparent'}
                 color={activeProjectId === project._id ? 'brand.500' : 'inherit'}
@@ -191,18 +191,18 @@ export default function Navbar({
       </Menu>
 
       <Box position="relative">
-        <IconButton 
-          icon={<Bell size={20} />} 
-          variant="ghost" rounded="xl" 
+        <IconButton
+          icon={<Bell size={20} />}
+          variant="ghost" rounded="xl"
           color="gray.500"
           _hover={{ bg: hoverBg, color: hoverIconColor, transform: 'rotate(15deg) scale(1.1)' }}
           transition="all 0.2s"
           onClick={() => navigate('/activity')}
           aria-label="Activity Log"
         />
-        <Box 
-          position="absolute" top="2" right="2" w="2" h="2" 
-          bg="brand.500" rounded="full" border="2px solid" borderColor={bg} 
+        <Box
+          position="absolute" top="2" right="2" w="2" h="2"
+          bg="brand.500" rounded="full" border="2px solid" borderColor={bg}
         />
       </Box>
 

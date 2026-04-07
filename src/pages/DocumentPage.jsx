@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
-import { FileText, Loader, Download, Lock, MailCheck, Eye, EyeOff, Plus, Upload, ShieldAlert } from 'lucide-react';
+import { FileText, Download, Lock, MailCheck, Eye, EyeOff, Plus, Upload, ShieldAlert } from 'lucide-react';
 import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
@@ -261,7 +261,42 @@ export default function DocumentPage({ user, activeProjectId }) {
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all">
           {loading && activeProjectId ? (
-            <div className="flex justify-center p-20"><Loader className="animate-spin text-primary-600" size={40} /></div>
+            <div className="animate-pulse">
+              {/* Table header stays visible for layout stability */}
+              <table className="w-full text-left">
+                <thead className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+                  <tr className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                    <th className="px-6 py-5">Document Details</th>
+                    <th className="px-6 py-5">Access</th>
+                    <th className="px-6 py-5">View Content</th>
+                    <th className="px-6 py-5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                  {[...Array(7)].map((_, i) => (
+                    <tr key={i}>
+                      <td className="px-6 py-5">
+                        <div className="h-4 w-48 bg-gray-200 dark:bg-gray-700 rounded mb-1.5" />
+                        <div className="h-3 w-64 bg-gray-100 dark:bg-gray-800 rounded" />
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="h-6 w-20 bg-gray-200 dark:bg-gray-700 rounded-full" />
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded" />
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                        <div className="flex justify-end gap-2">
+                          <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+                          <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+                          <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <table className="w-full text-left">
               <thead className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">

@@ -1,11 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Upload, Trash2, Image as ImageIcon, Video, RefreshCw } from 'lucide-react';
+import { Save, Upload, Trash2, Image as ImageIcon, Video, RefreshCw, Plus, Layout } from 'lucide-react';
 import API from '../api';
 
 export default function ManageWebsitePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState({ logo: null, images: [], videos: [] });
+  const [settings, setSettings] = useState({ 
+    logo: null, 
+    images: [], 
+    videos: [],
+    adminName: '',
+    adminEmail: '',
+    adminMobile: '',
+    companyAddress: '',
+    companyEmail: '',
+    companyPhone: ''
+  });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -13,6 +23,9 @@ export default function ManageWebsitePage() {
   const [newLogo, setNewLogo] = useState(null);
   const [newImages, setNewImages] = useState([]);
   const [newVideos, setNewVideos] = useState([]);
+
+  // Feature state: array of { _id?, title, description, existingScreenshot, newScreenshotFile }
+  const [features, setFeatures] = useState([]);
 
   useEffect(() => {
     fetchSettings();
@@ -22,6 +35,16 @@ export default function ManageWebsitePage() {
     try {
       setLoading(true);
       const { data } = await API.get('/website-settings');
+      setSettings(data);
+      // Initialise features from DB
+      setFeatures((data.features || []).map(f => ({
+        _id: f._id,
+        title: f.title || '',
+        description: f.description || '',
+        existingScreenshot: f.screenshot || null,
+        newScreenshotFile: null,
+        hasNewScreenshot: false
+      })));
       setSettings(data);
       setLoading(false);
     } catch (err) {
@@ -53,10 +76,35 @@ export default function ManageWebsitePage() {
       // Append kept existing videos
       settings.videos.forEach(vid => formData.append('existingVideos', vid));
 
+      // Append features metadata as JSON
+      const featuresPayload = features.map(f => ({
+        _id: f._id,
+        title: f.title,
+        description: f.description,
+        existingScreenshot: f.existingScreenshot,
+        hasNewScreenshot: f.hasNewScreenshot
+      }));
+      formData.append('featuresData', JSON.stringify(featuresPayload));
+
+      // Append new feature screenshots IN ORDER (only those with hasNewScreenshot=true)
+      features.forEach(f => {
+        if (f.hasNewScreenshot && f.newScreenshotFile) {
+          formData.append('featureScreenshots', f.newScreenshotFile);
+        }
+      });
+
       // Append new files
       if (newLogo) formData.append('logo', newLogo);
       newImages.forEach(file => formData.append('images', file));
       newVideos.forEach(file => formData.append('videos', file));
+
+      // Append contact fields
+      formData.append('adminName', settings.adminName || '');
+      formData.append('adminEmail', settings.adminEmail || '');
+      formData.append('adminMobile', settings.adminMobile || '');
+      formData.append('companyAddress', settings.companyAddress || '');
+      formData.append('companyEmail', settings.companyEmail || '');
+      formData.append('companyPhone', settings.companyPhone || '');
 
       const { data } = await API.put('/website-settings', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -64,6 +112,14 @@ export default function ManageWebsitePage() {
 
       setSuccess('Website settings updated successfully!');
       setSettings(data.settings);
+      setFeatures((data.settings.features || []).map(f => ({
+        _id: f._id,
+        title: f.title || '',
+        description: f.description || '',
+        existingScreenshot: f.screenshot || null,
+        newScreenshotFile: null,
+        hasNewScreenshot: false
+      })));
       
       // Clear new uploads
       setNewLogo(null);
@@ -99,6 +155,26 @@ export default function ManageWebsitePage() {
     updated.splice(index, 1);
     setNewVideos(updated);
   };
+
+  const addFeature = () => {
+    setFeatures([...features, { title: '', description: '', existingScreenshot: null, newScreenshotFile: null, hasNewScreenshot: false }]);
+  };
+
+  const removeFeature = (index) => {
+    setFeatures(features.filter((_, i) => i !== index));
+  };
+
+  const updateFeature = (index, field, value) => {
+    setFeatures(prev => prev.map((f, i) => i === index ? { ...f, [field]: value } : f));
+  };
+
+  const setFeatureScreenshot = (index, file) => {
+    setFeatures(prev => prev.map((f, i) => i === index
+      ? { ...f, newScreenshotFile: file, hasNewScreenshot: true }
+      : f
+    ));
+  };
+
 
   if (loading) {
     return (
@@ -289,6 +365,151 @@ export default function ManageWebsitePage() {
                 No videos uploaded yet.
               </div>
             )}
+          </div>
+        </div>
+
+        {/* --- FEATURES SECTION --- */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Layout size={20} className="text-green-500" /> Feature Showcase
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Each feature appears as a section with a screenshot on the public landing page.</p>
+            </div>
+            <button
+              onClick={addFeature}
+              className="flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40 text-green-700 dark:text-green-400 rounded-lg text-sm font-bold border border-green-200 dark:border-green-800 transition-colors"
+            >
+              <Plus size={16} /> Add Feature
+            </button>
+          </div>
+
+          {features.length === 0 && (
+            <div className="py-8 text-center text-sm font-bold text-gray-400 bg-gray-50 dark:bg-gray-900 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+              No features added yet. Click "Add Feature" to get started.
+            </div>
+          )}
+
+          <div className="space-y-6">
+            {features.map((feat, i) => (
+              <div key={i} className="flex flex-col md:flex-row gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700">
+                {/* Screenshot uploader */}
+                <div className="flex-shrink-0">
+                  <label className="relative cursor-pointer block w-40 h-28 rounded-xl overflow-hidden border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-green-400 transition-colors bg-white dark:bg-gray-800">
+                    {feat.newScreenshotFile ? (
+                      <img src={URL.createObjectURL(feat.newScreenshotFile)} alt="New" className="w-full h-full object-cover" />
+                    ) : feat.existingScreenshot ? (
+                      <img src={formatUrl(feat.existingScreenshot)} alt="Existing" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                        <ImageIcon size={24} />
+                        <span className="text-[10px] font-bold mt-1">Screenshot</span>
+                      </div>
+                    )}
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                      if (e.target.files[0]) setFeatureScreenshot(i, e.target.files[0]);
+                    }} />
+                    <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">Click to change</div>
+                  </label>
+                </div>
+
+                {/* Title & Description */}
+                <div className="flex-1 flex flex-col gap-3">
+                  <input
+                    type="text"
+                    value={feat.title}
+                    onChange={(e) => updateFeature(i, 'title', e.target.value)}
+                    placeholder="Feature title (e.g. Kanban Board)"
+                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm font-bold text-gray-800 dark:text-white placeholder-gray-400 outline-none focus:ring-2 focus:ring-green-500/30"
+                  />
+                  <textarea
+                    value={feat.description}
+                    onChange={(e) => updateFeature(i, 'description', e.target.value)}
+                    placeholder="Describe this feature in 1-3 sentences..."
+                    rows={3}
+                    className="w-full px-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-700 dark:text-gray-300 placeholder-gray-400 outline-none focus:ring-2 focus:ring-green-500/30 resize-none"
+                  />
+                </div>
+
+                {/* Remove button */}
+                <button
+                  onClick={() => removeFeature(i)}
+                  className="self-start p-2 bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-colors border border-red-100 dark:border-red-800"
+                  title="Remove feature"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* --- ABOUT US & CONTACT INFO SECTION --- */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Plus size={20} className="text-blue-500" /> About Us & Contact Details
+            </h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Provide administrator and company contact information for the landing page.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Admin Info */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">Administrator Details</h3>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Admin Name"
+                  value={settings.adminName || ''}
+                  onChange={(e) => setSettings({ ...settings, adminName: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+                <input
+                  type="email"
+                  placeholder="Admin Email"
+                  value={settings.adminEmail || ''}
+                  onChange={(e) => setSettings({ ...settings, adminEmail: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+                <input
+                  type="text"
+                  placeholder="Admin Mobile No."
+                  value={settings.adminMobile || ''}
+                  onChange={(e) => setSettings({ ...settings, adminMobile: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+              </div>
+            </div>
+
+            {/* Company Info */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">Company Details</h3>
+              <div className="space-y-3">
+                <input
+                  type="email"
+                  placeholder="Company Email"
+                  value={settings.companyEmail || ''}
+                  onChange={(e) => setSettings({ ...settings, companyEmail: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+                <input
+                  type="text"
+                  placeholder="Company Phone No."
+                  value={settings.companyPhone || ''}
+                  onChange={(e) => setSettings({ ...settings, companyPhone: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/30"
+                />
+                <textarea
+                  placeholder="Company Address"
+                  value={settings.companyAddress || ''}
+                  onChange={(e) => setSettings({ ...settings, companyAddress: e.target.value })}
+                  rows={2}
+                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/30 resize-none"
+                />
+              </div>
+            </div>
           </div>
         </div>
 

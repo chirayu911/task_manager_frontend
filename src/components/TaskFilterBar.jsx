@@ -31,10 +31,11 @@ export default function TaskFilterBar({
           setFilterMode(e.target.value);
           setCurrentPage(1);
         }}
-        className="w-full sm:w-56 h-[42px] border border-gray-200 rounded-xl px-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer shadow-sm"
+        className="w-full sm:w-56 h-[42px] border border-gray-200 rounded-xl px-4 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer shadow-sm capitalize"
       >
-        <option value={isIssueMode ? "all_Issue" : "all_tasks"} label={isIssueMode ? "All Issues" : "All Tasks"} />
-        <option value={isIssueMode ? "my_Issue" : "my_tasks"} label={isIssueMode ? "My Issues" : "My Tasks"} />
+        <option value={isIssueMode ? "all_Issues" : "all_tasks"} label={isIssueMode ? "all issues" : "all task"} />
+        <option value={isIssueMode ? "my_Issues" : "my_tasks"} label={isIssueMode ? "my tasks" : "my tasks"} />
+        <option value="my_mentions" label="my mentions" />
 
         {/* ⭐ Dynamically map the project's team members */}
         {staffList && staffList.length > 0 && (

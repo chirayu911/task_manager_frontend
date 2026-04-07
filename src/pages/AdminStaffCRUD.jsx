@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Users, Loader, Building2 } from 'lucide-react'; 
+import { Users, Building2 } from 'lucide-react';
+import { Box } from '@chakra-ui/react';
 import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
 import TableControls from '../components/TableControls';
 import ConfirmModal from '../components/ConfirmModal';
 import Notification from '../components/Notification';
+import { TableSkeleton, PageHeaderSkeleton } from '../components/SkeletonLoaders';
 
 export default function AdminStaffCRUD({ user, socket }) {
   const [users, setUsers] = useState([]);
@@ -53,8 +55,8 @@ export default function AdminStaffCRUD({ user, socket }) {
   }, []);
 
   // ⭐ Context Sync: RE-FETCH whenever the company is switched or component mounts
-  useEffect(() => { 
-    fetchUsers(); 
+  useEffect(() => {
+    fetchUsers();
   }, [fetchUsers, activeCompanyId]);
 
   useEffect(() => {
@@ -95,20 +97,20 @@ export default function AdminStaffCRUD({ user, socket }) {
   }, [filteredUsers, currentPage, itemsPerPage]);
 
   if (loading) return (
-    <div className="flex flex-col items-center justify-center p-20 min-h-[400px]">
-      <Loader className="animate-spin text-primary-600 mb-4" size={40} />
-      <p className="text-gray-500 font-medium">Updating staff directory...</p>
-    </div>
+    <Box p={8} maxW="6xl" mx="auto">
+      <PageHeaderSkeleton />
+      <TableSkeleton rows={8} columns={4} />
+    </Box>
   );
 
   return (
     <div className="p-8 max-w-6xl mx-auto transition-colors">
-      
+
       {notification && (
-        <Notification 
-          type={notification.type} 
-          message={notification.message} 
-          onClose={() => setNotification(null)} 
+        <Notification
+          type={notification.type}
+          message={notification.message}
+          onClose={() => setNotification(null)}
         />
       )}
 

@@ -1,17 +1,19 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { 
-  Loader, CheckCircle, AlertTriangle, Upload, ShieldAlert, 
-  ZapOff, LayoutGrid, List, User, Clock, ExternalLink 
+import {
+  CheckCircle, AlertTriangle, Upload, ShieldAlert,
+  ZapOff, LayoutGrid, List, User, Clock, ExternalLink
 } from 'lucide-react';
+import { Box } from '@chakra-ui/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { TableSkeleton, PageHeaderSkeleton } from '../components/SkeletonLoaders';
 import API from '../api';
 
 // Components
 import { CreateButton } from '../components/PageHeader';
 import TableControls from '../components/TableControls';
-import ConfirmModal from '../components/ConfirmModal'; 
-import Declaration from '../components/Declaration';  
+import ConfirmModal from '../components/ConfirmModal';
+import Declaration from '../components/Declaration';
 import TaskFilterBar from '../components/TaskFilterBar';
 import TaskTable from '../components/TaskTable';
 import BulkUploadModal from '../components/BulkUploadModal';
@@ -30,9 +32,9 @@ export default function TaskPage({ user, socket, activeProjectId }) {
   const HeaderIcon = isIssueMode ? AlertTriangle : CheckCircle;
 
   // 2. State
-  const [viewMode, setViewMode] = useState("kanban"); 
+  const [viewMode, setViewMode] = useState("kanban");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterMode, setFilterMode] = useState("all_tasks"); 
+  const [filterMode, setFilterMode] = useState("all_tasks");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
@@ -55,14 +57,14 @@ export default function TaskPage({ user, socket, activeProjectId }) {
   }, []);
 
   // 4. Hook Data
-  const { 
-    tasks, setTasks, staffList, statusList, 
-    pageLoading, handleInlineUpdate, fetchTasks, totalItems 
+  const {
+    tasks, setTasks, staffList, statusList,
+    pageLoading, handleInlineUpdate, fetchTasks, totalItems
   } = useTasks(user, socket, isAdmin, can, setFeedback, activeProjectId, typeLabel);
 
   // ⭐ CRITICAL FIX: Define currentTableData BEFORE it is used in the return statement
   const currentTableData = useMemo(() => {
-    return (tasks || []).filter(task => 
+    return (tasks || []).filter(task =>
       task.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [tasks, searchTerm]);
@@ -88,24 +90,28 @@ export default function TaskPage({ user, socket, activeProjectId }) {
       setFeedback(location.state.feedback);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       navigate(location.pathname, { replace: true, state: {} });
-      fetchUsage(); 
+      fetchUsage();
     }
   }, [location, navigate, fetchUsage]);
 
   useEffect(() => {
     if (activeProjectId && typeof fetchTasks === 'function') {
       // If in Kanban mode, we fetch a large limit to show all cards across columns
-      fetchTasks(viewMode === 'table' ? currentPage : 1, viewMode === 'table' ? itemsPerPage : 1000);
-      fetchUsage(); 
+      fetchTasks(
+        viewMode === 'table' ? currentPage : 1,
+        viewMode === 'table' ? itemsPerPage : 1000,
+        filterMode // ⭐ Pass the current filter mode
+      );
+      fetchUsage();
     }
-  }, [currentPage, itemsPerPage, activeProjectId, fetchTasks, fetchUsage, viewMode]);
+  }, [currentPage, itemsPerPage, activeProjectId, fetchTasks, fetchUsage, viewMode, filterMode]);
 
   const handleDelete = async () => {
     try {
       await API.delete(`/tasks/${taskToDelete}`);
       setTasks(prev => prev.filter(t => t._id !== taskToDelete));
       notify('success', `${typeLabel} terminated successfully.`);
-      fetchUsage(); 
+      fetchUsage();
     } catch (err) {
       notify('error', "Deletion sequence failed.");
     }
@@ -123,7 +129,7 @@ export default function TaskPage({ user, socket, activeProjectId }) {
       await API.put(`/tasks/${draggableId}`, { status: destination.droppableId });
       notify('success', `Status synced: ${statusList.find(s => s._id === destination.droppableId)?.name}`);
     } catch (err) {
-      setTasks(originalTasks); 
+      setTasks(originalTasks);
       notify('error', "Status synchronization failed.");
     }
   };
@@ -143,10 +149,10 @@ export default function TaskPage({ user, socket, activeProjectId }) {
   }
 
   if (pageLoading) return (
-    <div className="flex flex-col items-center justify-center p-20 min-h-[400px]">
-      <Loader className="animate-spin text-primary-600 mb-4" size={40} />
-      <p className="text-[10px] font-black uppercase text-gray-400 tracking-[0.2em]">Accessing Data Stream...</p>
-    </div>
+    <Box p={8} maxW="full" mx="auto">
+      <PageHeaderSkeleton />
+      <TableSkeleton rows={10} columns={5} />
+    </Box>
   );
 
   return (
@@ -156,10 +162,10 @@ export default function TaskPage({ user, socket, activeProjectId }) {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10 gap-6">
         <div>
           <h2 className="text-4xl font-black flex items-center gap-3 text-gray-900 dark:text-white tracking-tight">
-            <HeaderIcon className="text-primary-600" size={36} /> 
+            <HeaderIcon className="text-primary-600" size={36} />
             {typeLabel} Control Plane
           </h2>
-          
+
           {usage.max !== -1 && (
             <div className={`mt-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] border transition-all ${isLimitReached ? 'bg-red-50 text-red-600 border-red-100' : 'bg-primary-50 text-primary-600 border-primary-100'}`}>
               <ShieldAlert size={14} />
@@ -170,13 +176,13 @@ export default function TaskPage({ user, socket, activeProjectId }) {
 
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-[20px] border border-gray-200 dark:border-gray-700 shadow-inner">
-            <button 
+            <button
               onClick={() => setViewMode("kanban")}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'kanban' ? 'bg-white dark:bg-gray-700 text-primary-600 shadow-lg' : 'text-gray-400 hover:text-gray-600'}`}
             >
               <LayoutGrid size={14} strokeWidth={3} /> Kanban
             </button>
-            <button 
+            <button
               onClick={() => setViewMode("table")}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'table' ? 'bg-white dark:bg-gray-700 text-primary-600 shadow-lg' : 'text-gray-400 hover:text-gray-600'}`}
             >
@@ -185,32 +191,32 @@ export default function TaskPage({ user, socket, activeProjectId }) {
           </div>
 
           {can('tasks_create') && (
-            <button 
-              onClick={() => !usage.hasBulkUpload ? notify('error', 'Upgrade Required') : setIsBulkOpen(true)} 
+            <button
+              onClick={() => !usage.hasBulkUpload ? notify('error', 'Upgrade Required') : setIsBulkOpen(true)}
               className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border shadow-sm active:scale-95 ${!usage.hasBulkUpload ? 'bg-gray-50 text-gray-300 cursor-not-allowed border-gray-100' : 'bg-white dark:bg-gray-800 text-primary-600 border-primary-100 hover:bg-primary-50'}`}
             >
-              {!usage.hasBulkUpload ? <ZapOff size={16} /> : <Upload size={16} />} 
-              Batch Injection
+              {!usage.hasBulkUpload ? <ZapOff size={16} /> : <Upload size={16} />}
+              Bulk Upload
             </button>
           )}
-          
+
           {can('tasks_create') && (
             <CreateButton onClick={() => isLimitReached ? notify('error', 'Limit Reached') : navigate(`${basePath}/create`)} label={`Deploy ${typeLabel}`} disabled={isLimitReached} />
           )}
         </div>
       </div>
 
-      <TaskFilterBar 
-        searchTerm={searchTerm} setSearchTerm={setSearchTerm} 
-        filterMode={filterMode} setFilterMode={setFilterMode} 
+      <TaskFilterBar
+        searchTerm={searchTerm} setSearchTerm={setSearchTerm}
+        filterMode={filterMode} setFilterMode={setFilterMode}
         setCurrentPage={setCurrentPage} staffList={staffList} typeLabel={typeLabel}
       />
 
       {viewMode === "table" ? (
         <div className="bg-white dark:bg-gray-800 rounded-[32px] shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mt-8 transition-all hover:shadow-2xl hover:shadow-primary-500/5">
-          <TaskTable 
+          <TaskTable
             currentTableData={currentTableData} user={user} isAdmin={isAdmin} can={can} staffList={staffList}
-            statusList={statusList} handleInlineUpdate={handleInlineUpdate} openDeleteModal={(id) => {setTaskToDelete(id); setIsModalOpen(true);}} navigate={navigate} basePath={basePath} 
+            statusList={statusList} handleInlineUpdate={handleInlineUpdate} openDeleteModal={(id) => { setTaskToDelete(id); setIsModalOpen(true); }} navigate={navigate} basePath={basePath}
           />
           <TableControls
             currentPage={currentPage} totalItems={totalItems} itemsPerPage={itemsPerPage}
@@ -254,9 +260,8 @@ export default function TaskPage({ user, socket, activeProjectId }) {
                                     className={`bg-white dark:bg-gray-950 p-6 rounded-[24px] shadow-sm border border-gray-100 dark:border-gray-800 group transition-all ${snapshot.isDragging ? 'shadow-2xl scale-105 border-primary-500 ring-4 ring-primary-500/10 z-50' : 'hover:border-primary-500/30 hover:shadow-lg'}`}
                                   >
                                     <div className="flex justify-between items-start mb-4">
-                                      <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border ${
-                                        task.priority === 'High' || task.priority === 'Critical' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-950/40 dark:border-red-900/50' : 'bg-primary-50 text-primary-600 border-primary-100 dark:bg-primary-950/40 dark:border-red-900/50'
-                                      }`}>
+                                      <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border ${task.priority === 'High' || task.priority === 'Critical' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-950/40 dark:border-red-900/50' : 'bg-primary-50 text-primary-600 border-primary-100 dark:bg-primary-950/40 dark:border-red-900/50'
+                                        }`}>
                                         {task.priority || 'Medium'}
                                       </span>
                                       <button onClick={() => navigate(`${basePath}/view/${task._id}`)} className="p-1.5 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-all">
@@ -276,7 +281,7 @@ export default function TaskPage({ user, socket, activeProjectId }) {
                                     <div className="flex items-center justify-between border-t border-gray-50 dark:border-gray-800 pt-5 mt-auto">
                                       <div className="flex items-center gap-2.5">
                                         <div className="w-7 h-7 bg-primary-50 dark:bg-primary-900 text-primary-600 rounded-xl flex items-center justify-center text-[11px] font-black shadow-inner border border-primary-100 dark:border-primary-800 shrink-0">
-                                          {task.assignedTo?.name ? task.assignedTo.name[0] : <User size={12}/>}
+                                          {task.assignedTo?.name ? task.assignedTo.name[0] : <User size={12} />}
                                         </div>
                                         <div className="flex flex-col">
                                           {(isAdmin || can('tasks_update')) ? (
@@ -296,7 +301,7 @@ export default function TaskPage({ user, socket, activeProjectId }) {
                                               {task.assignedTo?.name || 'Unassigned'}
                                             </span>
                                           )}
-                                          
+
                                           {task.assignedTo?.email && (
                                             <span className="text-[9px] font-bold text-gray-400 dark:text-gray-500 truncate max-w-[120px]">
                                               {task.assignedTo.email}
@@ -325,7 +330,7 @@ export default function TaskPage({ user, socket, activeProjectId }) {
         </div>
       )}
 
-      <BulkUploadModal 
+      <BulkUploadModal
         isOpen={isBulkOpen} onClose={() => setIsBulkOpen(false)} activeProjectId={activeProjectId}
         type={isIssueMode ? 'issue' : 'task'} onRefresh={() => fetchTasks(1, itemsPerPage)} notify={notify}
       />

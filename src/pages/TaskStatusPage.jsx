@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Settings, Loader, CheckCircle2, XCircle } from 'lucide-react';
+import { Settings, CheckCircle2, XCircle } from 'lucide-react';
 import API from '../api';
 import { EditButton, DeleteButton } from '../components/TableButtons';
 import { CreateButton, SearchBar } from '../components/PageHeader';
@@ -104,8 +104,44 @@ export default function TaskStatusPage({ user, socket, activeProjectId }) {
   }
 
   if (loading) return (
-    <div className="flex justify-center p-20">
-      <Loader className="animate-spin text-primary-600 dark:text-primary-400" size={40} />
+    <div className="p-8 max-w-5xl mx-auto animate-pulse">
+      {/* Header skeleton */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div>
+          <div className="h-8 w-44 bg-gray-200 dark:bg-gray-700 rounded-lg mb-2" />
+          <div className="h-4 w-64 bg-gray-100 dark:bg-gray-800 rounded" />
+        </div>
+        <div className="flex gap-3">
+          <div className="h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+          <div className="h-10 w-28 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+        </div>
+      </div>
+      {/* Table skeleton */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm overflow-hidden">
+        <table className="w-full text-left">
+          <thead className="bg-gray-50/50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+            <tr className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+              <th className="px-6 py-5">Status Name</th>
+              <th className="px-6 py-4">System Status</th>
+              <th className="px-6 py-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {[...Array(6)].map((_, i) => (
+              <tr key={i}>
+                <td className="px-6 py-5"><div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded" /></td>
+                <td className="px-6 py-4"><div className="h-6 w-20 bg-gray-200 dark:bg-gray-700 rounded-full" /></td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end gap-2">
+                    <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+                    <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 

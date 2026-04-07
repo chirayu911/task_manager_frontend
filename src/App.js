@@ -28,7 +28,7 @@ import SubscriptionFormPage from './pages/SubscriptionFormPage';
 import DocumentPage from './pages/DocumentPage';
 import DocumentFormPage from './pages/DocumentFormPage';
 import CreateDocument from "./pages/CreateDocument";
-import CompanyRegistrationPage from "./pages/CompanyRegistrationPage"; 
+import CompanyRegistrationPage from "./pages/CompanyRegistrationPage";
 import CompanyProfilePage from "./pages/CompanyProfilePage";
 import CompanySettingsPage from './pages/CompanySettingsPage';
 import SubscriptionSelectionPage from './pages/SubscriptionSelectionPage'; // Assumed from previous step
@@ -44,8 +44,9 @@ import MainLayout from "./components/MainLayout";
 import Notification from "./components/Notification";
 
 // Chakra UI
-import { Flex, Spinner, Text } from "@chakra-ui/react";
+import { Flex, Text } from "@chakra-ui/react";
 import { useThemeManager } from "./context/ThemeLoader";
+import { AppInitializationSkeleton } from "./components/SkeletonLoaders";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -149,9 +150,9 @@ export default function App() {
       setUser(null);
       setActiveProjectId(null);
       setActiveCompanyId('all'); // reset to default
-      localStorage.removeItem('profile'); 
+      localStorage.removeItem('profile');
       notify('info', 'Logged out successfully');
-      navigate('/login'); 
+      navigate('/login');
     } catch (err) {
       console.error("Logout error", err);
     }
@@ -203,16 +204,7 @@ export default function App() {
   };
 
   if (loading) {
-    return (
-      <Flex h="100vh" w="100%" align="center" justify="center" transition="background-color 0.3s">
-        <Flex direction="column" align="center" gap={4}>
-          <Spinner size="xl" thickness="4px" speed="0.65s" emptyColor="transparent" color="brand.500" />
-          <Text fontWeight="bold" color="gray.500" textTransform="uppercase" fontSize="sm">
-            Verifying Session...
-          </Text>
-        </Flex>
-      </Flex>
-    );
+    return <AppInitializationSkeleton />;
   }
 
   return (

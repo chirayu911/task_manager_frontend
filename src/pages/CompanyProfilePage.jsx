@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import API from '../api';
-import { Building2, Mail, MapPin, Loader2, Edit3, Trash2, CreditCard } from 'lucide-react';
-import { 
-  Box, Flex, Text, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, useColorModeValue, Icon, Spinner 
+import { Building2, Mail, MapPin, Trash2, CreditCard } from 'lucide-react';
+import {
+  Box, Flex, Text, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, useColorModeValue, Icon, Spinner
 } from '@chakra-ui/react';
 import ConfirmModal from '../components/ConfirmModal';
 import Notification from '../components/Notification';
@@ -14,8 +14,6 @@ export default function CompanyProfilePage({ setActiveCompanyId }) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [companyToDelete, setCompanyToDelete] = useState(null);
   const [notification, setNotification] = useState(null);
-  
-  const navigate = useNavigate();
 
   // HORRIBLE MISTAKE AVERTED! Hooks must absolutely be at the top level BEFORE any early returns.
   const bg = useColorModeValue('white', 'gray.800');
@@ -76,10 +74,10 @@ export default function CompanyProfilePage({ setActiveCompanyId }) {
   return (
     <Box p={8} transition="colors 0.3s">
       {notification && (
-        <Notification 
-          type={notification.type} 
-          message={notification.message} 
-          onClose={() => setNotification(null)} 
+        <Notification
+          type={notification.type}
+          message={notification.message}
+          onClose={() => setNotification(null)}
         />
       )}
 
@@ -106,9 +104,9 @@ export default function CompanyProfilePage({ setActiveCompanyId }) {
             </Thead>
             <Tbody>
               {companies.map((comp) => (
-                <Tr 
-                  key={comp._id} 
-                  _hover={{ bg: hoverBg }} 
+                <Tr
+                  key={comp._id}
+                  _hover={{ bg: hoverBg }}
                   transition="all 0.2s"
                   borderColor={borderColor}
                 >
@@ -125,7 +123,7 @@ export default function CompanyProfilePage({ setActiveCompanyId }) {
                       </Flex>
                     </Flex>
                   </Td>
-                  
+
                   <Td px={5} py={4}>
                     <Flex direction="column" gap={1}>
                       <Flex align="center" gap={1.5}>
@@ -134,8 +132,8 @@ export default function CompanyProfilePage({ setActiveCompanyId }) {
                           {comp.subscriptionPlan?.name || 'No Plan'}
                         </Text>
                       </Flex>
-                      <Badge 
-                        colorScheme={comp.subscriptionStatus === 'active' ? 'green' : 'red'} 
+                      <Badge
+                        colorScheme={comp.subscriptionStatus === 'active' ? 'green' : 'red'}
                         w="fit-content" fontSize="10px" fontWeight="bold" px={2} py={0.5} rounded="md"
                       >
                         {comp.subscriptionStatus || 'Inactive'}
@@ -163,8 +161,8 @@ export default function CompanyProfilePage({ setActiveCompanyId }) {
                   </Td>
 
                   <Td px={5} py={4} isNumeric>
-                    <IconButton 
-                      icon={<Trash2 size={18} />} 
+                    <IconButton
+                      icon={<Trash2 size={18} />}
                       onClick={() => openDeleteModal(comp._id)}
                       colorScheme="red" variant="ghost" rounded="xl"
                       aria-label="Delete Organization"
@@ -176,7 +174,7 @@ export default function CompanyProfilePage({ setActiveCompanyId }) {
             </Tbody>
           </Table>
         </Box>
-        
+
         {companies.length === 0 && (
           <Flex p={24} direction="column" align="center" justify="center">
             <Icon as={Building2} boxSize={16} color={emptyIconColor} mb={4} />
