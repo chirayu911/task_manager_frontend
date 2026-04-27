@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   CheckCircle, AlertTriangle, Upload, ShieldAlert,
-  ZapOff, LayoutGrid, List, User, Clock, ExternalLink
+  ZapOff, LayoutGrid, List, User, Clock, ExternalLink, GanttChartSquare
 } from 'lucide-react';
 import { Box } from '@chakra-ui/react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -17,6 +17,7 @@ import Declaration from '../components/Declaration';
 import TaskFilterBar from '../components/TaskFilterBar';
 import TaskTable from '../components/TaskTable';
 import BulkUploadModal from '../components/BulkUploadModal';
+import GanttView from '../components/GanttView';
 
 // Hooks
 import { useTasks } from '../hooks/useTasks';
@@ -96,11 +97,11 @@ export default function TaskPage({ user, socket, activeProjectId }) {
 
   useEffect(() => {
     if (activeProjectId && typeof fetchTasks === 'function') {
-      // If in Kanban mode, we fetch a large limit to show all cards across columns
+      // Table mode: paginated. Kanban + Gantt: fetch all (limit 1000)
       fetchTasks(
         viewMode === 'table' ? currentPage : 1,
         viewMode === 'table' ? itemsPerPage : 1000,
-        filterMode // ⭐ Pass the current filter mode
+        filterMode
       );
       fetchUsage();
     }
@@ -188,6 +189,12 @@ export default function TaskPage({ user, socket, activeProjectId }) {
             >
               <List size={14} strokeWidth={3} /> Table
             </button>
+            <button
+              onClick={() => setViewMode("gantt")}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'gantt' ? 'bg-white dark:bg-gray-700 text-primary-600 shadow-lg' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              <GanttChartSquare size={14} strokeWidth={3} /> Gantt
+            </button>
           </div>
 
           {can('tasks_create') && (
@@ -224,6 +231,13 @@ export default function TaskPage({ user, socket, activeProjectId }) {
             onLimitChange={(newLimit) => { setItemsPerPage(newLimit); setCurrentPage(1); }}
           />
         </div>
+      ) : viewMode === "gantt" ? (
+        <GanttView
+          tasks={currentTableData}
+          statusList={statusList}
+          navigate={navigate}
+          basePath={basePath}
+        />
       ) : (
         <div className="mt-8">
           <DragDropContext onDragEnd={onDragEnd}>

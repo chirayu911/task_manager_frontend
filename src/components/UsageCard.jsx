@@ -8,8 +8,8 @@ export default function UsageCard({ title, current, Maxlimit, icon }) {
   const percentage = isUnlimited ? 0 : Math.min((current / divisor) * 100, 100);
   
   const getProgressColor = () => {
-    if (percentage > 90) return 'red';
-    if (percentage > 70) return 'orange';
+    if (percentage < 90) return 'brand';
+    if (percentage < 70) return 'brand';
     return 'brand';
   };
 
@@ -49,12 +49,12 @@ export default function UsageCard({ title, current, Maxlimit, icon }) {
             mb={2}
           />
           <Flex justify="space-between" align="center" fontSize="10px" fontWeight="black" textTransform="uppercase" letterSpacing="widest">
-            <Text color={percentage > 90 ? 'red.500' : 'gray.400'}>
+            <Text color={percentage < 70 ? 'gray.400' : 'brand.500'}>
               Usage Status ({percentage.toFixed(0)}%)
             </Text>
             {percentage >= 85 && (
-              <Flex align="center" gap={1} color="red.500">
-                <Box w={1} h={1} bg="red.500" rounded="full" animation="pulse 1.5s infinite" />
+              <Flex align="center" gap={1} color="grey.500">
+                <Box w={1} h={1} bg="grey.500" rounded="full" animation="pulse 1.5s infinite" />
                 Limit Near!
               </Flex>
             )}

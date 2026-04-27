@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Users, ClipboardList, ShieldPlus, Folder,
   LogOut, Settings, ChevronUp, ChevronDown, FolderKanban,
   AlertTriangle, Briefcase, CreditCard, FileText, MonitorPlay, Building2,
-  Server, MessageSquare, PieChart
+  Server, MessageSquare, PieChart, CalendarCheck
 } from "lucide-react";
 import {
   Flex, Box, Text, VStack, Collapse, Icon, useColorModeValue, Menu, MenuButton, MenuList, Button, Image, Badge
@@ -75,6 +75,7 @@ export default function Sidebar({ user, handleLogout }) {
       ]
     },
     { name: "Chat", path: "/chat", icon: MessageSquare, allowed: can("chat_read") },
+    { name: "Attendance", path: "/attendance", icon: CalendarCheck, allowed: true },
     { name: "Staff", path: "/admin/staff", icon: Users, allowed: can("staff_read") },
     { name: "Roles", path: "/admin/roles", icon: Briefcase, allowed: isAdmin && !user?.isCompanyOwner },
     { name: "Permissions", path: "/admin/permissions", icon: ShieldPlus, allowed: isAdmin && !user?.isCompanyOwner },

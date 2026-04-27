@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Loader, ArrowLeft, Plus, Trash2, ShieldAlert, Users, Layers, Zap } from "lucide-react";
 import API from "../api";
-import FormActionButtons from "../components/FormActionButtons"; 
-import Notification from "../components/Notification"; 
+import FormActionButtons from "../components/FormActionButtons";
+import Notification from "../components/Notification";
 
 export default function SubscriptionFormPage() {
   const { id } = useParams();
@@ -26,7 +26,7 @@ export default function SubscriptionFormPage() {
     maxStaff: 5,
     maxTeamMembersPerProject: 5,
     hasBulkUpload: false,
-    features: [""] 
+    features: [""]
   });
 
   const fetchData = useCallback(async () => {
@@ -61,9 +61,9 @@ export default function SubscriptionFormPage() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ 
-      ...prev, 
-      [name]: type === 'checkbox' ? checked : value 
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
     }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
   };
@@ -94,8 +94,8 @@ export default function SubscriptionFormPage() {
     // Usage Limit Validation
     const limitFields = ['maxProjects', 'maxTasks', 'maxDocuments', 'maxStaff', 'maxTeamMembersPerProject'];
     limitFields.forEach(field => {
-        if (formData[field] === "" || formData[field] === null) newErrors[field] = "Required.";
-        else if (Number(formData[field]) < -1) newErrors[field] = "Min -1.";
+      if (formData[field] === "" || formData[field] === null) newErrors[field] = "Required.";
+      else if (Number(formData[field]) < -1) newErrors[field] = "Min -1.";
     });
 
     const validFeatures = formData.features.filter(f => f.trim() !== "");
@@ -106,7 +106,7 @@ export default function SubscriptionFormPage() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
     if (!validateForm()) return setNotification({ type: 'error', message: "Please fix errors." });
 
     const cleanData = {
@@ -133,7 +133,7 @@ export default function SubscriptionFormPage() {
   const errorInputClass = "w-full border p-3 rounded-xl outline-none transition-all shadow-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-red-500 focus:ring-2 focus:ring-red-500/20";
   const labelClass = "block text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide";
 
-  if (loading && isEditMode) return <div className="flex justify-center mt-20"><Loader className="animate-spin text-primary-600 dark:text-primary-400" size={40}/></div>;
+  if (loading && isEditMode) return <div className="flex justify-center mt-20"><Loader className="animate-spin text-primary-600 dark:text-primary-400" size={40} /></div>;
 
   return (
     <div className="p-8 max-w-4xl mx-auto transition-colors">
@@ -151,7 +151,7 @@ export default function SubscriptionFormPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl border border-gray-100 dark:border-gray-700 p-8 space-y-8 transition-colors">
-        
+
         {/* Basic Info */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
@@ -201,28 +201,28 @@ export default function SubscriptionFormPage() {
               <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Max Documents</label>
               <input type="number" min="-1" name="maxDocuments" value={formData.maxDocuments} onChange={handleChange} className={errors.maxDocuments ? errorInputClass : inputClass} />
             </div>
-            
+
             {/* ⭐ NEW LIMIT FIELDS */}
             <div className="space-y-2">
-              <label className="flex items-center gap-1 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase"><Users size={12}/> Max Staff (Global)</label>
+              <label className="flex items-center gap-1 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase"><Users size={12} /> Max Staff (Global)</label>
               <input type="number" min="-1" name="maxStaff" value={formData.maxStaff} onChange={handleChange} className={errors.maxStaff ? errorInputClass : inputClass} />
             </div>
             <div className="space-y-2">
-              <label className="flex items-center gap-1 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase"><Layers size={12}/> Team Size / Project</label>
+              <label className="flex items-center gap-1 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase"><Layers size={12} /> Team Size / Project</label>
               <input type="number" min="-1" name="maxTeamMembersPerProject" value={formData.maxTeamMembersPerProject} onChange={handleChange} className={errors.maxTeamMembersPerProject ? errorInputClass : inputClass} />
             </div>
             <div className="flex items-center space-x-3 pt-6">
-               <input 
-                  type="checkbox" 
-                  id="hasBulkUpload" 
-                  name="hasBulkUpload" 
-                  checked={formData.hasBulkUpload} 
-                  onChange={handleChange} 
-                  className="w-5 h-5 accent-primary-600"
-               />
-               <label htmlFor="hasBulkUpload" className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 uppercase cursor-pointer">
-                  <Zap size={16} className="text-amber-500" /> Enable Bulk Upload
-               </label>
+              <input
+                type="checkbox"
+                id="hasBulkUpload"
+                name="hasBulkUpload"
+                checked={formData.hasBulkUpload}
+                onChange={handleChange}
+                className="w-5 h-5 accent-primary-600"
+              />
+              <label htmlFor="hasBulkUpload" className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-300 uppercase cursor-pointer">
+                <Zap size={16} className="text-amber-500" /> Enable Bulk Upload
+              </label>
             </div>
           </div>
         </div>
@@ -246,4 +246,4 @@ export default function SubscriptionFormPage() {
       </form>
     </div>
   );
-}
+}

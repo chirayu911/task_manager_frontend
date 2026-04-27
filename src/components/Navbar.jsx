@@ -31,7 +31,7 @@ export default function Navbar({
   const fetchCompanies = useCallback(async () => {
     if (!isSystemAdmin) return;
     try {
-      const { data } = await API.get('/company/all');
+      await API.get('/company/all');
       if (!activeCompanyId) setActiveCompanyId('all');
     } catch (err) {
       console.error("Navbar: Failed to load companies", err);

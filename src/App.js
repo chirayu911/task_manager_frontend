@@ -5,7 +5,7 @@ import { io } from "socket.io-client";
 
 // Pages
 import Login from "./pages/LoginPage";
-import AdminDashboard from "./pages/AdminDashboard";
+import DashboardPage from "./pages/DashboardPage";
 import StaffFormPage from "./pages/StaffFormPage";
 import AdminStaffCRUD from "./pages/AdminStaffCRUD";
 import TaskPage from "./pages/TaskPage";
@@ -38,6 +38,8 @@ import ManageWebsitePage from "./pages/ManageWebsitePage";
 import AdminAuditLogPage from "./pages/AdminAuditLogPage";
 import ChatPage from "./pages/ChatPage";
 import ReportsPage from "./pages/ReportsPage";
+import AttendancePage from "./pages/AttendancePage";
+import EmployeeAttendanceCalendar from "./pages/EmployeeAttendanceCalendar";
 
 // Components
 import MainLayout from "./components/MainLayout";
@@ -249,8 +251,10 @@ export default function App() {
         <Route path="/reset-password/:token" element={!user ? <ResetPasswordPage /> : <Navigate to="/login" replace />} />
 
         {/* PROTECTED ROUTES */}
-        <Route path="/admin" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
-        <Route path="/staff" element={<ProtectedRoute><AdminDashboard user={user} /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><DashboardPage user={user} /></ProtectedRoute>} />
+        <Route path="/staff" element={<ProtectedRoute><DashboardPage user={user} /></ProtectedRoute>} />
+        <Route path="/attendance" element={<ProtectedRoute><AttendancePage user={user} /></ProtectedRoute>} />
+        <Route path="/attendance/calendar/:userId" element={<ProtectedRoute requiredPermission="attendance_read"><EmployeeAttendanceCalendar /></ProtectedRoute>} />
         <Route path="/activity" element={<ProtectedRoute><ActivityLogPage user={user} /></ProtectedRoute>} />
         <Route path="/admin/audit-logs" element={<ProtectedRoute requiredPermission="*"><AdminAuditLogPage /></ProtectedRoute>} />
         <Route path="/chat" element={<ProtectedRoute><ChatPage user={user} /></ProtectedRoute>} />
