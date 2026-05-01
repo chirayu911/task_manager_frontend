@@ -52,7 +52,6 @@ export default function EmployeeAttendanceCalendar() {
   const headingColor = useColorModeValue('gray.900', 'white');
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.100', 'gray.700');
-  const headerBg = useColorModeValue('gray.50', 'whiteAlpha.50');
 
   if (loading) {
     return (

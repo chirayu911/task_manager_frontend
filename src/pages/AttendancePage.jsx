@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Box, Flex, Text, Table, Thead, Tbody, Tr, Th, Td, Badge, Select, Spinner, useColorModeValue, Input, Button, Tabs, TabList, TabPanels, Tab, TabPanel, useDisclosure, Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton, Textarea, Icon, IconButton } from '@chakra-ui/react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Box, Flex, Text, Table, Thead, Tbody, Tr, Th, Td, Badge, Spinner, useColorModeValue, Input, Button, Tabs, TabList, TabPanels, Tab, TabPanel, useDisclosure, Modal, ModalOverlay, ModalContent, ModalHeader, ModalFooter, ModalBody, ModalCloseButton, Textarea, Icon } from '@chakra-ui/react';
 import { CalendarPlus, CalendarDays, Check, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import API from '../api';
@@ -26,7 +26,7 @@ export default function AttendancePage({ user }) {
   const perms = user?.permissions || [];
   const isAdminOrOwner = user?.isCompanyOwner || roleName === 'admin' || perms.includes('*') || perms.includes('attendance_read');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       if (isAdminOrOwner) {
         const [usersRes, leaveRes] = await Promise.all([
@@ -45,11 +45,11 @@ export default function AttendancePage({ user }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAdminOrOwner]);
 
   useEffect(() => {
     fetchData();
-  }, [isAdminOrOwner]);
+  }, [fetchData]);
 
   const filteredUsers = useMemo(() => {
     let result = usersList;
