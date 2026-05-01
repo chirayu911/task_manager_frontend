@@ -7,18 +7,18 @@ export default function EditProfileModal({ isOpen, onClose, user }) {
   const [username, setUsername] = useState('');
   const [profilePicture, setProfilePicture] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL?.replace(/\/api\/?$/, '') || 'http://localhost:5000';
+  const API_BASE_URL = import.meta.env.REACT_APP_API_URL?.replace(/\/api\/?$/, '') || 'http://localhost:5000';
 
   useEffect(() => {
     if (user) {
       setName(user.name || '');
       setUsername(user.username || '');
-      
+
       if (user.profilePicture) {
         setPreviewUrl(`${API_BASE_URL}/${user.profilePicture.replace(/\\/g, '/').replace(/^\//, '')}`);
       } else {
@@ -72,7 +72,7 @@ export default function EditProfileModal({ isOpen, onClose, user }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-white dark:bg-gray-900 w-full max-w-md rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-        
+
         {/* Header */}
         <div className="flex justify-between items-center p-5 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
           <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Edit Profile</h2>
@@ -106,8 +106,8 @@ export default function EditProfileModal({ isOpen, onClose, user }) {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Full Name</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -118,8 +118,8 @@ export default function EditProfileModal({ isOpen, onClose, user }) {
 
             <div>
               <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Username</label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -130,15 +130,15 @@ export default function EditProfileModal({ isOpen, onClose, user }) {
           </div>
 
           <div className="mt-8 flex gap-3">
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={onClose}
               className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold transition-colors"
             >
               Cancel
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={saving}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl font-bold transition-colors disabled:opacity-50 shadow-md"
             >

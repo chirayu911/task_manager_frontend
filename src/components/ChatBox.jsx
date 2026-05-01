@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Box, Flex, Text, Input, IconButton, VStack, Avatar, Spinner, HStack,
   Menu, MenuButton, MenuList, MenuItem, useColorModeValue, useDisclosure,
-  Drawer, DrawerOverlay, DrawerContent, DrawerCloseButton, DrawerHeader, DrawerBody, Button 
+  Drawer, DrawerOverlay, DrawerContent, DrawerCloseButton, DrawerHeader, DrawerBody, Button
 } from '@chakra-ui/react';
 import { Send, MoreVertical, UserPlus, Users, ArrowLeft, Trash2, Paperclip, File, Folder, Download, ExternalLink } from 'lucide-react';
 import API from '../api';
@@ -25,7 +25,7 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
   const { isOpen: isProfileOpen, onOpen: onProfileOpen, onClose: onProfileClose } = useDisclosure();
   const { isOpen: isDocPickerOpen, onOpen: onDocPickerOpen, onClose: onDocPickerClose } = useDisclosure();
   const { isOpen: isProjectSelectorOpen, onOpen: onProjectSelectorOpen, onClose: onProjectSelectorClose } = useDisclosure();
-  
+
   const [commonProjects, setCommonProjects] = useState([]);
   const [pendingFile, setPendingFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -43,7 +43,7 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
 
   useEffect(() => {
     // Initialize socket
-    const backendUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const backendUrl = import.meta.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5000';
     const newSocket = io(backendUrl, {
       auth: { userId: currentUser?._id },
       withCredentials: true
@@ -65,11 +65,11 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
       setLoading(true);
       try {
         let convId = conversationId;
-        
+
         if (!convId && (projectId || participantId)) {
           // fetch or create conversation
-          const res = await API.post('/chat/conversations', { 
-             projectId, participantId, isGroup: false 
+          const res = await API.post('/chat/conversations', {
+            projectId, participantId, isGroup: false
           });
           setConversation(res.data);
           convId = res.data._id;
@@ -81,9 +81,9 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
         if (convId) {
           const msgRes = await API.get(`/chat/messages/${convId}`);
           setMessages(msgRes.data);
-          
+
           if (socket) {
-             socket.emit("joinRoom", convId);
+            socket.emit("joinRoom", convId);
           }
         }
       } catch (err) {
@@ -97,7 +97,7 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
 
   useEffect(() => {
     if (!socket) return;
-    
+
     const handleReceiveMessage = (msg) => {
       setMessages((prev) => [...prev, msg]);
       setTypingUsers(prev => prev.filter(u => u._id !== msg.sender?._id));
@@ -119,11 +119,11 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
     socket.on("receiveMessage", handleReceiveMessage);
     socket.on("typing", handleTyping);
     socket.on("stopTyping", handleStopTyping);
-    
+
     return () => {
-       socket.off("receiveMessage", handleReceiveMessage);
-       socket.off("typing", handleTyping);
-       socket.off("stopTyping", handleStopTyping);
+      socket.off("receiveMessage", handleReceiveMessage);
+      socket.off("typing", handleTyping);
+      socket.off("stopTyping", handleStopTyping);
     };
   }, [socket]);
 
@@ -134,18 +134,18 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
   const handleSend = async (e) => {
     e.preventDefault();
     const targetConvId = conversation?._id || activeConversation?._id || conversationId;
-    
+
     if (!newMessage.trim() || !targetConvId) return;
 
     try {
       const text = newMessage;
       setNewMessage('');
-      
+
       if (socket) {
         socket.emit("stopTyping", { roomId: targetConvId, user: { _id: currentUser._id, name: currentUser.name } });
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       }
-      
+
       await API.post('/chat/messages', {
         conversationId: targetConvId,
         content: text
@@ -158,7 +158,7 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
 
   const handleInputChange = (e) => {
     setNewMessage(e.target.value);
-    
+
     const targetConvId = conversation?._id || activeConversation?._id || conversationId;
     if (!socket || !targetConvId) return;
 
@@ -167,7 +167,7 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    
+
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit("stopTyping", { roomId: targetConvId, user: { _id: currentUser._id, name: currentUser.name } });
     }, 1500);
@@ -279,7 +279,7 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
         ...prev,
         participants: prev.participants.filter(p => p._id !== userId)
       }));
-    } catch(err) {
+    } catch (err) {
       console.error("Failed to remove participant", err);
     }
   };
@@ -290,7 +290,7 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
   }, [conversation, currentUser]);
 
   const chatTitle = conversation?.name || (conversation?.isGroup ? 'Group Chat' : 'Direct Message');
-  
+
   const isGroupOwner = (conversation?.createdBy?._id || conversation?.createdBy)?.toString() === currentUser?._id?.toString() || isProjectOwner;
 
   if (loading) {
@@ -303,30 +303,30 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
       <Flex p={4} borderBottom="1px solid" borderColor={border} align="center" justify="space-between">
         <HStack spacing={3}>
           {onBack && (
-             <IconButton aria-label="Go back" icon={<ArrowLeft size={18} />} size="sm" variant="ghost" onClick={onBack} />
+            <IconButton aria-label="Go back" icon={<ArrowLeft size={18} />} size="sm" variant="ghost" onClick={onBack} />
           )}
           <Avatar size="sm" icon={<Users size={16} />} bg="brand.500" color="white" />
-          <Box 
-            as={conversation?.isGroup ? "button" : "div"} 
-            textAlign="left" 
-            onClick={conversation?.isGroup ? onProfileOpen : undefined} 
+          <Box
+            as={conversation?.isGroup ? "button" : "div"}
+            textAlign="left"
+            onClick={conversation?.isGroup ? onProfileOpen : undefined}
             _hover={{ opacity: conversation?.isGroup ? 0.8 : 1 }}
             transition="opacity 0.2s"
           >
             <Text fontWeight="bold" fontSize="md">{chatTitle}</Text>
             {conversation?.isGroup && (
-               <Text fontSize="xs" color="brand.500" fontWeight="bold">Tap to view {conversation.participants?.length || 0} members</Text>
+              <Text fontSize="xs" color="brand.500" fontWeight="bold">Tap to view {conversation.participants?.length || 0} members</Text>
             )}
           </Box>
         </HStack>
-        
+
         {conversation?.isGroup && isGroupOwner && (
           <Menu>
             <MenuButton as={IconButton} icon={<MoreVertical size={18} />} variant="ghost" size="sm" />
             <MenuList>
-               <MenuItem icon={<UserPlus size={16} />} onClick={onOpen}>
-                 Add User to Group
-               </MenuItem>
+              <MenuItem icon={<UserPlus size={16} />} onClick={onOpen}>
+                Add User to Group
+              </MenuItem>
             </MenuList>
           </Menu>
         )}
@@ -335,12 +335,12 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
       {/* Messages */}
       <Flex flex={1} overflowY="auto" direction="column" p={4} gap={3}>
         {messages.length === 0 ? (
-           <Text color="gray.500" textAlign="center" mt={10}>No messages yet. Send a message to start the conversation!</Text>
+          <Text color="gray.500" textAlign="center" mt={10}>No messages yet. Send a message to start the conversation!</Text>
         ) : (
           messages.map((msg, i) => {
             const isMe = msg.sender?._id === currentUser?._id;
-            const showName = !isMe && (i === 0 || messages[i-1].sender?._id !== msg.sender?._id);
-            
+            const showName = !isMe && (i === 0 || messages[i - 1].sender?._id !== msg.sender?._id);
+
             return (
               <Flex key={msg._id} direction="column" align={isMe ? 'flex-end' : 'flex-start'}>
                 {showName && <Text fontSize="xs" color="gray.500" mb={1} ml={1}>{msg.sender?.name}</Text>}
@@ -367,24 +367,24 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
                         </Box>
                       </Flex>
                       <HStack mt={3} pt={2} borderTop="1px solid" borderColor={isMe ? "whiteAlpha.300" : "blackAlpha.100"} justify="space-between">
-                        <Button 
-                          as="a" 
-                          href={msg.document.fileUrl ? `${process.env.REACT_APP_API_URL?.replace('/api', '')}/${msg.document.fileUrl}` : '#'} 
-                          target="_blank" 
-                          download 
-                          size="xs" 
-                          variant="ghost" 
+                        <Button
+                          as="a"
+                          href={msg.document.fileUrl ? `${import.meta.env.REACT_APP_API_URL?.replace('/api', '')}/${msg.document.fileUrl}` : '#'}
+                          target="_blank"
+                          download
+                          size="xs"
+                          variant="ghost"
                           color="inherit"
                           _hover={{ bg: isMe ? "whiteAlpha.200" : "blackAlpha.100" }}
                           leftIcon={<Download size={14} />}
                         >
                           Download
                         </Button>
-                        <Button 
-                          as="a" 
+                        <Button
+                          as="a"
                           href={`/documents/${msg.document._id}`}
-                          size="xs" 
-                          variant="ghost" 
+                          size="xs"
+                          variant="ghost"
                           color="inherit"
                           _hover={{ bg: isMe ? "whiteAlpha.200" : "blackAlpha.100" }}
                           rightIcon={<ExternalLink size={14} />}
@@ -401,14 +401,14 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
             );
           })
         )}
-        
+
         {typingUsers.length > 0 && (
           <Flex direction="column" align="flex-start" mt={2} mb={1} px={2} pl={10}>
-             <Text fontSize="xs" color="gray.500" fontStyle="italic">
-               {conversation?.isGroup 
-                 ? `${typingUsers.map(u => u.name).join(', ')} ${typingUsers.length > 1 ? 'are' : 'is'} typing...`
-                 : `typing...`}
-             </Text>
+            <Text fontSize="xs" color="gray.500" fontStyle="italic">
+              {conversation?.isGroup
+                ? `${typingUsers.map(u => u.name).join(', ')} ${typingUsers.length > 1 ? 'are' : 'is'} typing...`
+                : `typing...`}
+            </Text>
           </Flex>
         )}
         <div ref={bottomRef} />
@@ -420,11 +420,11 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
           <HStack>
             <Menu placement="top-start">
               <Tooltip label="Attach document">
-                <MenuButton 
-                  as={IconButton} 
-                  icon={<Paperclip size={20} />} 
-                  variant="ghost" 
-                  rounded="full" 
+                <MenuButton
+                  as={IconButton}
+                  icon={<Paperclip size={20} />}
+                  variant="ghost"
+                  rounded="full"
                   isLoading={isUploading}
                 />
               </Tooltip>
@@ -438,8 +438,8 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
               </MenuList>
             </Menu>
 
-            <Input 
-              placeholder="Type a message..." 
+            <Input
+              placeholder="Type a message..."
               value={newMessage}
               onChange={handleInputChange}
               bg={inputBg}
@@ -447,17 +447,17 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
               rounded="full"
               px={5}
             />
-            <input 
-              type="file" 
-              hidden 
-              ref={fileInputRef} 
-              onChange={handleFileChange} 
+            <input
+              type="file"
+              hidden
+              ref={fileInputRef}
+              onChange={handleFileChange}
             />
-            <IconButton 
+            <IconButton
               type="submit"
-              aria-label="Send message" 
-              icon={<Send size={18} />} 
-              colorScheme="brand" 
+              aria-label="Send message"
+              icon={<Send size={18} />}
+              colorScheme="brand"
               rounded="full"
               isDisabled={!newMessage.trim() && !isUploading}
             />
@@ -466,15 +466,15 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
       </Box>
 
       {/* Modals */}
-      <DocumentPickerModal 
-        isOpen={isDocPickerOpen} 
-        onClose={onDocPickerClose} 
+      <DocumentPickerModal
+        isOpen={isDocPickerOpen}
+        onClose={onDocPickerClose}
         onSelect={handleSelectExistingDoc}
       />
 
-      <ProjectSelectorModal 
-        isOpen={isProjectSelectorOpen} 
-        onClose={onProjectSelectorClose} 
+      <ProjectSelectorModal
+        isOpen={isProjectSelectorOpen}
+        onClose={onProjectSelectorClose}
         projects={commonProjects}
         onSelect={(pId) => performUpload(pendingFile, pId)}
       />
@@ -487,47 +487,47 @@ export default function ChatBox({ conversationId, activeConversation, projectId,
             <Text>Group Profile</Text>
           </DrawerHeader>
           <DrawerBody p={0}>
-             {isGroupOwner && (
-                <Box p={4} borderBottom="1px solid" borderColor={border} bg={inputBg}>
-                  <Button leftIcon={<UserPlus size={16} />} size="sm" colorScheme="brand" w="full" onClick={() => { onProfileClose(); onOpen(); }}>
-                    Add Participant
-                  </Button>
-                </Box>
-             )}
-             <VStack align="stretch" spacing={0} divider={<Box borderBottom="1px solid" borderColor={border} />}>
-               {conversation?.participants?.map(p => (
-                  <Flex key={p._id} p={4} align="center" justify="space-between" _hover={{ bg: hoverBg }}>
-                    <Flex align="center" gap={3}>
-                      <Avatar size="sm" name={p.name} />
-                      <Box>
-                        <Text fontWeight="bold" fontSize="sm">{p.name}</Text>
-                        <Text fontSize="xs" color="brand.500" fontWeight="bold" textTransform="uppercase">
-                          {(p.role?.name || "Member")}
-                        </Text>
-                      </Box>
-                    </Flex>
-                    {(isGroupOwner && p._id !== currentUser._id) && (
-                      <IconButton 
-                        icon={<Trash2 size={16} />} 
-                        size="sm" 
-                        variant="ghost" 
-                        colorScheme="red" 
-                        aria-label="Remove User" 
-                        onClick={() => handleRemoveParticipant(p._id)}
-                      />
-                    )}
+            {isGroupOwner && (
+              <Box p={4} borderBottom="1px solid" borderColor={border} bg={inputBg}>
+                <Button leftIcon={<UserPlus size={16} />} size="sm" colorScheme="brand" w="full" onClick={() => { onProfileClose(); onOpen(); }}>
+                  Add Participant
+                </Button>
+              </Box>
+            )}
+            <VStack align="stretch" spacing={0} divider={<Box borderBottom="1px solid" borderColor={border} />}>
+              {conversation?.participants?.map(p => (
+                <Flex key={p._id} p={4} align="center" justify="space-between" _hover={{ bg: hoverBg }}>
+                  <Flex align="center" gap={3}>
+                    <Avatar size="sm" name={p.name} />
+                    <Box>
+                      <Text fontWeight="bold" fontSize="sm">{p.name}</Text>
+                      <Text fontSize="xs" color="brand.500" fontWeight="bold" textTransform="uppercase">
+                        {(p.role?.name || "Member")}
+                      </Text>
+                    </Box>
                   </Flex>
-               ))}
-             </VStack>
+                  {(isGroupOwner && p._id !== currentUser._id) && (
+                    <IconButton
+                      icon={<Trash2 size={16} />}
+                      size="sm"
+                      variant="ghost"
+                      colorScheme="red"
+                      aria-label="Remove User"
+                      onClick={() => handleRemoveParticipant(p._id)}
+                    />
+                  )}
+                </Flex>
+              ))}
+            </VStack>
           </DrawerBody>
         </DrawerContent>
       </Drawer>
 
       {conversation && (
-        <AddClientModal 
-          isOpen={isOpen} 
-          onClose={onClose} 
-          conversationId={conversation._id} 
+        <AddClientModal
+          isOpen={isOpen}
+          onClose={onClose}
+          conversationId={conversation._id}
         />
       )}
     </Flex>

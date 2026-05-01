@@ -61,7 +61,7 @@ export default function CompanySettingsPage({ user }) {
 
         const existingLogo = data.logo || data.logoUrl;
         if (existingLogo) {
-          setLogoPreview(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/${existingLogo.replace(/\\/g, '/')}`);
+          setLogoPreview(`${import.meta.env.REACT_APP_API_URL || 'http://localhost:5000'}/${existingLogo.replace(/\\/g, '/')}`);
         }
 
         if (usageRes?.data) {

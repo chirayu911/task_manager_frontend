@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   Shield, Zap, ArrowRight,
-  Terminal, Layers, Share2, 
+  Terminal, Layers, Share2,
   FileText, RefreshCw, Check, X, Mail, Phone, MapPin, User,
   MousePointer2, GitBranch, ChevronDown, ShieldCheck
 } from 'lucide-react';
@@ -29,11 +29,11 @@ function FeatureSection({ feature, index, formatUrl }) {
   const isEven = index % 2 === 0;
 
   const accentColors = [
-    { from: 'from-blue-500', to: 'to-cyan-400',   glow: 'shadow-blue-500/30',   text: 'text-blue-400',   border: 'border-blue-500/30'   },
+    { from: 'from-blue-500', to: 'to-cyan-400', glow: 'shadow-blue-500/30', text: 'text-blue-400', border: 'border-blue-500/30' },
     { from: 'from-purple-500', to: 'to-indigo-400', glow: 'shadow-purple-500/30', text: 'text-purple-400', border: 'border-purple-500/30' },
-    { from: 'from-emerald-500', to: 'to-teal-400',  glow: 'shadow-emerald-500/30',text: 'text-emerald-400',border: 'border-emerald-500/30' },
-    { from: 'from-amber-500', to: 'to-orange-400',  glow: 'shadow-amber-500/30',  text: 'text-amber-400',  border: 'border-amber-500/30'  },
-    { from: 'from-rose-500', to: 'to-pink-400',     glow: 'shadow-rose-500/30',   text: 'text-rose-400',   border: 'border-rose-500/30'   },
+    { from: 'from-emerald-500', to: 'to-teal-400', glow: 'shadow-emerald-500/30', text: 'text-emerald-400', border: 'border-emerald-500/30' },
+    { from: 'from-amber-500', to: 'to-orange-400', glow: 'shadow-amber-500/30', text: 'text-amber-400', border: 'border-amber-500/30' },
+    { from: 'from-rose-500', to: 'to-pink-400', glow: 'shadow-rose-500/30', text: 'text-rose-400', border: 'border-rose-500/30' },
   ];
   const accent = accentColors[index % accentColors.length];
 
@@ -78,7 +78,7 @@ function FeatureSection({ feature, index, formatUrl }) {
 
         {/* Decorative dots */}
         <div className="flex items-center gap-2 mt-10">
-          {[0,1,2].map(d => (
+          {[0, 1, 2].map(d => (
             <div key={d} className={`h-1.5 rounded-full bg-gradient-to-r ${accent.from} ${accent.to} transition-all duration-500 ${d === 0 ? 'w-8' : 'w-3 opacity-40'}`} />
           ))}
         </div>
@@ -101,7 +101,7 @@ export default function LandingPage() {
   const formatUrl = (path) => {
     if (!path) return '';
     if (path.startsWith('http')) return path;
-    let baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    let baseUrl = import.meta.env.REACT_APP_API_URL || 'http://localhost:5000';
     baseUrl = baseUrl.replace(/\/api\/?$/, '');
     const cleanPath = path.replace(/\\/g, '/').replace(/^\//, '');
     return `${baseUrl}/${cleanPath}`;
@@ -141,17 +141,17 @@ export default function LandingPage() {
   }, [subscriptions, billingCycle]);
 
   const workflowSteps = [
-    { label: "Initialize",  icon: <Terminal size={18} />,  text: "Register your company and invite your engineering team." },
-    { label: "Collaborate", icon: <Share2 size={18} />,    text: "Work simultaneously on modular project documentation." },
-    { label: "Review",      icon: <Shield size={18} />,    text: "Admins approve changes and manage role-based permissions." },
-    { label: "Deploy",      icon: <Layers size={18} />,    text: "Export finalized document modules as enterprise-ready PDFs." }
+    { label: "Initialize", icon: <Terminal size={18} />, text: "Register your company and invite your engineering team." },
+    { label: "Collaborate", icon: <Share2 size={18} />, text: "Work simultaneously on modular project documentation." },
+    { label: "Review", icon: <Shield size={18} />, text: "Admins approve changes and manage role-based permissions." },
+    { label: "Deploy", icon: <Layers size={18} />, text: "Export finalized document modules as enterprise-ready PDFs." }
   ];
 
   const dynamicFeatures = settings?.features?.filter(f => f.title) || [];
 
   return (
     <div className="min-h-screen bg-[#030712] text-white font-sans selection:bg-blue-500/30 overflow-x-hidden relative">
-      
+
       {/* ─── CSS Animations ──────────────────────────────────────────────────── */}
       <style>{`
         @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-20px); } }
@@ -217,7 +217,7 @@ export default function LandingPage() {
             <Zap size={12} className="fill-blue-400" /> New: Modular Document Sync
           </div>
           <h1 className="text-6xl md:text-8xl font-black mb-8 leading-[0.9] tracking-tight">
-            NovaBoard: <br/>
+            NovaBoard: <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-cyan-400">
               Where big ideas find their flow.
             </span>
@@ -267,7 +267,7 @@ export default function LandingPage() {
                 <Zap size={12} className="fill-blue-400" /> Platform Features
               </div>
               <h2 className="text-5xl md:text-6xl font-black mb-6 leading-tight">
-                Everything your team<br/>
+                Everything your team<br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">needs to ship faster.</span>
               </h2>
               <p className="text-gray-400 text-lg max-w-2xl mx-auto">
@@ -285,11 +285,10 @@ export default function LandingPage() {
                       setActiveFeatureTab(i);
                       document.getElementById(`feature-${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }}
-                    className={`px-5 py-2.5 rounded-full text-sm font-bold border transition-all ${
-                      activeFeatureTab === i
+                    className={`px-5 py-2.5 rounded-full text-sm font-bold border transition-all ${activeFeatureTab === i
                         ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-600/30'
                         : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/30 hover:text-white'
-                    }`}
+                      }`}
                   >
                     {f.title}
                   </button>
@@ -317,7 +316,7 @@ export default function LandingPage() {
               <h2 className="text-4xl md:text-5xl font-black mb-6">See NovaBoard in Action</h2>
               <p className="text-gray-400">Discover our platform through live previews.</p>
             </div>
-            
+
             {settings.videos && settings.videos.length > 0 && (
               <div className="mb-16 max-w-5xl mx-auto rounded-3xl overflow-hidden shadow-2xl shadow-blue-500/10 border border-white/10 bg-black">
                 <video src={formatUrl(settings.videos[0])} controls autoPlay muted loop className="w-full object-cover aspect-video" />
@@ -375,20 +374,19 @@ export default function LandingPage() {
               </div>
             ) : (
               filteredSubscriptions.map((plan, index) => {
-                const isPopular = (filteredSubscriptions.length === 3 && index === 1) || 
-                                (filteredSubscriptions.length === 2 && index === 1) ||
-                                (filteredSubscriptions.length === 1);
-                
+                const isPopular = (filteredSubscriptions.length === 3 && index === 1) ||
+                  (filteredSubscriptions.length === 2 && index === 1) ||
+                  (filteredSubscriptions.length === 1);
+
                 return (
-                  <div key={plan._id} className={`p-8 rounded-[32px] flex flex-col h-full transition-all duration-300 border-2 ${
-                    isPopular 
-                      ? 'bg-gradient-to-b from-blue-600/20 to-indigo-600/10 border-blue-500 transform lg:scale-105 shadow-2xl shadow-blue-600/20 relative' 
+                  <div key={plan._id} className={`p-8 rounded-[32px] flex flex-col h-full transition-all duration-300 border-2 ${isPopular
+                      ? 'bg-gradient-to-b from-blue-600/20 to-indigo-600/10 border-blue-500 transform lg:scale-105 shadow-2xl shadow-blue-600/20 relative'
                       : 'bg-white/5 border-white/10 hover:border-white/20 shadow-lg'
-                  }`}>
+                    }`}>
                     {isPopular && (
                       <div className="absolute -top-5 left-1/2 -translate-x-1/2 px-4 py-1 bg-blue-500 text-[10px] font-black uppercase tracking-widest rounded-full whitespace-nowrap z-10">Most Popular</div>
                     )}
-                    
+
                     <div className="mb-8">
                       <h3 className="text-xl font-bold mb-2 text-white">{plan.name}</h3>
                       <div className="flex items-baseline gap-1">
@@ -397,11 +395,10 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    <button onClick={() => navigate('/register')} className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all mb-10 ${
-                      isPopular 
-                        ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/40 active:scale-95' 
+                    <button onClick={() => navigate('/register')} className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all mb-10 ${isPopular
+                        ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/40 active:scale-95'
                         : 'bg-white/10 hover:bg-white/20 text-white border border-white/10 active:scale-95'
-                    }`}>
+                      }`}>
                       Get Started <ArrowRight size={16} />
                     </button>
 
@@ -467,7 +464,7 @@ export default function LandingPage() {
             ].map((item, i) => (
               <div key={i} className="group p-6 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/20 transition-all">
                 <h4 className="text-lg font-bold mb-3 flex items-center gap-3">
-                  <span className="text-blue-500 font-mono">0{i+1}.</span> {item.q}
+                  <span className="text-blue-500 font-mono">0{i + 1}.</span> {item.q}
                 </h4>
                 <p className="text-gray-500 text-sm leading-relaxed pl-10 group-hover:text-gray-400 transition-colors">{item.a}</p>
               </div>
@@ -480,12 +477,12 @@ export default function LandingPage() {
       <section id="about" className="py-32 px-6 relative z-10 border-t border-white/5 bg-[#040815]/50">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-16 items-start">
-            
+
             {/* Left: Contact Info */}
             <div>
               <h2 className="text-4xl font-black mb-8">About NovaBoard</h2>
               <p className="text-gray-400 mb-12 leading-relaxed max-w-xl">
-                NovaBoard is an enterprise-grade documentation and task management ecosystem designed for high-performance engineering teams. 
+                NovaBoard is an enterprise-grade documentation and task management ecosystem designed for high-performance engineering teams.
                 We bridge the gap between complex technical documentation and agile task tracking, ensuring zero data loss and high-fidelity output.
               </p>
 
@@ -563,11 +560,11 @@ export default function LandingPage() {
                   </>
                 )}
               </div>
-              
+
               <div className="mt-12 pt-8 border-t border-white/5">
                 <div className="flex items-center gap-4">
                   <div className="flex -space-x-2">
-                    {[1,2,3,4].map(i => (
+                    {[1, 2, 3, 4].map(i => (
                       <div key={i} className="w-8 h-8 rounded-full border-2 border-[#040815] bg-gray-800" />
                     ))}
                   </div>

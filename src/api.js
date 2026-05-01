@@ -1,12 +1,7 @@
 import axios from 'axios';
 
 // Get the base URL from environment variables or default to local development
-const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const defaultApiUrl = isLocalhost 
-  ? 'http://localhost:5000/api' 
-  : 'https://task-manager-backend-2-ez86.onrender.com/api';
-
-const BASE_URL = process.env.REACT_APP_API_URL || defaultApiUrl;
+const BASE_URL = import.meta.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 console.log(`API Base URL: ${BASE_URL}`);
 /**
  * ⭐ CUSTOM AXIOS INSTANCE

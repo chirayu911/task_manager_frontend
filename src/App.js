@@ -58,7 +58,7 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const { setThemeColor } = useThemeManager(); // ⭐ NEW
-  const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || "http://localhost:5000/api";
+  const SOCKET_URL = import.meta.env.REACT_APP_SOCKET_URL || "http://localhost:5000/api";
 
   // Project Context State Logic
   const [activeProjectId, setActiveProjectId] = useState(() => {

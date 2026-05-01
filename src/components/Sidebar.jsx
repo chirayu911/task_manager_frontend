@@ -18,7 +18,7 @@ export default function Sidebar({ user, handleLogout }) {
 
   const getProfilePicUrl = (path) => {
     if (!path) return '';
-    const baseUrl = (process.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/api\/?$/, '');
+    const baseUrl = (import.meta.env.REACT_APP_API_URL || 'http://localhost:5000').replace(/\/api\/?$/, '');
     const cleanPath = path.replace(/\\/g, '/').replace(/^\//, '');
     return `${baseUrl}/${cleanPath}`;
   };

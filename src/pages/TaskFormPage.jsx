@@ -17,7 +17,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   const isIssueMode = location.pathname.includes('/issues');
   const typeLabel = isIssueMode ? 'Issue' : 'Task';
   const returnPath = isIssueMode ? '/issues' : '/tasks';
@@ -25,29 +25,29 @@ export default function TaskFormPage({ user, activeProjectId }) {
   const isViewMode = location.pathname.includes('/view/');
   const isEditMode = Boolean(id) && !isViewMode;
 
-  const [formData, setFormData] = useState({ 
-    title: '', 
-    status: '', 
-    assignedTo: '', 
+  const [formData, setFormData] = useState({
+    title: '',
+    status: '',
+    assignedTo: '',
     description: '',
     priority: 'Medium',
     startDate: '', // ⭐ NEW
     hours: '',     // ⭐ NEW
     endDate: ''    // ⭐ NEW (Auto-calculated)
   });
-  
+
   // ⭐ NEW: Sub-tasks State
   const [subTasks, setSubTasks] = useState([]);
   const [newSubTaskTitle, setNewSubTaskTitle] = useState('');
-  
+
   const [images, setImages] = useState([]);
   const [videos, setVideos] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [videoPreviews, setVideoPreviews] = useState([]);
-  
+
   const [existingImages, setExistingImages] = useState([]);
   const [existingVideos, setExistingVideos] = useState([]);
-  
+
   const [notification, setNotification] = useState(null);
   const [errors, setErrors] = useState({});
 
@@ -58,17 +58,17 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
-  
+
   const [staffList, setStaffList] = useState([]);
   const [statusList, setStatusList] = useState([]);
   const [companySettings, setCompanySettings] = useState(null); // ⭐ NEW: For Date Calculation
-  
+
   const [selectedMedia, setSelectedMedia] = useState(null);
 
   const perms = user?.permissions || [];
   const roleName = typeof user?.role === 'object' ? user.role?.name : user?.role;
   const isAdmin = roleName === 'admin' || perms.includes('*');
-  const canUpdate = isAdmin || perms.includes('tasks_update'); 
+  const canUpdate = isAdmin || perms.includes('tasks_update');
 
   useEffect(() => {
     const initData = async () => {
@@ -84,7 +84,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
         const activeStatuses = statusRes.data.filter(s => s.status === 'active');
         setStatusList(activeStatuses);
         setStaffList(teamRes.data || []);
-        
+
         if (companyRes.data) {
           setCompanySettings(companyRes.data);
         }
@@ -110,8 +110,8 @@ export default function TaskFormPage({ user, activeProjectId }) {
         }
       } catch (err) {
         setNotification({ type: 'error', message: `Failed to load ${typeLabel.toLowerCase()} data.` });
-      } finally { 
-        setFetching(false); 
+      } finally {
+        setFetching(false);
       }
     };
     initData();
@@ -138,7 +138,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
     // Fast-forward minute by minute (very fast in JS, handles weird fractions perfectly)
     while (minutesNeeded > 0) {
       const dayOfWeek = dayNames[current.getDay()];
-      
+
       // Format to local date string to check against holidays (YYYY-MM-DD)
       const currentYear = current.getFullYear();
       const currentMonth = String(current.getMonth() + 1).padStart(2, '0');
@@ -155,7 +155,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
         const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 
         const isWithinWork = timeStr >= workingHours.start && timeStr < workingHours.end;
-        
+
         let isWithinBreak = false;
         if (breakTimings?.start && breakTimings?.end) {
           isWithinBreak = timeStr >= breakTimings.start && timeStr < breakTimings.end;
@@ -189,7 +189,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
   const toggleSubTask = (taskId) => {
     if (!canUpdate && isViewMode) return; // Prevent clicking if no permission
-    setSubTasks(subTasks.map(t => 
+    setSubTasks(subTasks.map(t =>
       (t.id === taskId || t._id === taskId) ? { ...t, isCompleted: !t.isCompleted } : t
     ));
   };
@@ -209,7 +209,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
         setNotification({ type: 'error', message: "Only image files are allowed!" });
         return false;
       }
-      if (file.size > 5 * 1024 * 1024) { 
+      if (file.size > 5 * 1024 * 1024) {
         setNotification({ type: 'error', message: "Image size must be less than 5MB!" });
         return false;
       }
@@ -219,7 +219,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
     if (images.length + validFiles.length > 5) {
       return setNotification({ type: 'error', message: "Max 5 images allowed!" });
     }
-    
+
     setImages(prev => [...prev, ...validFiles]);
     setPreviews(prev => [...prev, ...validFiles.map(file => URL.createObjectURL(file))]);
   };
@@ -231,7 +231,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
         setNotification({ type: 'error', message: "Only video files are allowed!" });
         return false;
       }
-      if (file.size > 50 * 1024 * 1024) { 
+      if (file.size > 50 * 1024 * 1024) {
         setNotification({ type: 'error', message: "Video size must be less than 50MB!" });
         return false;
       }
@@ -245,13 +245,13 @@ export default function TaskFormPage({ user, activeProjectId }) {
     if (videos.length + validFiles.length > 3) {
       return setNotification({ type: 'error', message: "Max 3 videos allowed!" });
     }
-    
+
     setVideos(prev => [...prev, ...validFiles]);
     setVideoPreviews(prev => [...prev, ...validFiles.map(file => URL.createObjectURL(file))]);
   };
 
   const handleDescriptionChange = (e) => {
-    if (isViewMode) return; 
+    if (isViewMode) return;
     const value = e.target.value;
     const selectionStart = e.target.selectionStart;
     const textBeforeCursor = value.substring(0, selectionStart);
@@ -282,7 +282,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.title.trim()) {
       newErrors.title = "Title is required.";
     } else if (formData.title.length > 50) {
@@ -316,7 +316,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isViewMode && !canUpdate) return; 
+    if (isViewMode && !canUpdate) return;
 
     // If view mode but has update access, they might be checking off a sub-task. Save that!
     if (isViewMode && canUpdate) {
@@ -341,9 +341,9 @@ export default function TaskFormPage({ user, activeProjectId }) {
       data.append('description', formData.description);
       data.append('status', formData.status);
       data.append('assignedTo', formData.assignedTo || "");
-      data.append('project', activeProjectId); 
+      data.append('project', activeProjectId);
       data.append('itemType', typeLabel);
-      
+
       // ⭐ Append New Fields
       data.append('startDate', formData.startDate);
       data.append('hours', formData.hours);
@@ -351,7 +351,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
       data.append('subTasks', JSON.stringify(subTasks));
 
       if (isIssueMode) data.append('priority', formData.priority);
-      
+
       const mentionedIds = staffList
         .filter(s => formData.description.toLowerCase().includes(`@${s.name.toLowerCase()}`))
         .map(s => s._id);
@@ -359,12 +359,12 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
       data.append('existingImages', JSON.stringify(existingImages));
       data.append('existingVideos', JSON.stringify(existingVideos));
-      
+
       images.forEach(img => data.append('images', img));
       videos.forEach(vid => data.append('videos', vid));
 
       const config = { headers: { 'Content-Type': 'multipart/form-data' } };
-      
+
       if (isEditMode) {
         await API.put(`/tasks/${id}`, data, config);
         setNotification({ type: 'success', message: `${typeLabel} updated successfully!` });
@@ -374,11 +374,11 @@ export default function TaskFormPage({ user, activeProjectId }) {
       }
 
       setTimeout(() => navigate(returnPath), 1500);
-      
-    } catch (err) { 
+
+    } catch (err) {
       setNotification({ type: 'error', message: err.response?.data?.message || "Save failed" });
       setLoading(false);
-    } 
+    }
   };
 
   if (!activeProjectId) {
@@ -408,12 +408,12 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
   return (
     <div className="p-8 max-w-5xl mx-auto min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      
+
       {notification && (
-        <Notification 
-          type={notification.type} 
-          message={notification.message} 
-          onClose={() => setNotification(null)} 
+        <Notification
+          type={notification.type}
+          message={notification.message}
+          onClose={() => setNotification(null)}
         />
       )}
 
@@ -427,7 +427,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl dark:shadow-none border border-gray-100 dark:border-gray-700 space-y-10 transition-colors">
-        
+
         {/* ============================== */}
         {/* CORE DETAILS                   */}
         {/* ============================== */}
@@ -436,34 +436,34 @@ export default function TaskFormPage({ user, activeProjectId }) {
             <label className={labelStyle}>
               {typeLabel} Title <span className="text-red-500">*</span>
             </label>
-            <input 
-              type="text" 
+            <input
+              type="text"
               className={`${inputBaseStyle} ${errors.title ? 'border-red-500 focus:ring-red-500' : inputActiveStyle} ${isViewMode && inputDisabledStyle}`}
-              value={formData.title} 
+              value={formData.title}
               onChange={(e) => {
                 setFormData({ ...formData, title: e.target.value });
                 if (errors.title) setErrors(prev => ({ ...prev, title: null }));
-              }} 
+              }}
               disabled={isViewMode}
-              required 
+              required
             />
             {errors.title && <p className="text-red-500 text-xs font-bold ml-1">{errors.title}</p>}
           </div>
 
           <div className="relative space-y-2">
             <label className={labelStyle}>
-              <AtSign size={14}/> Detailed Description
+              <AtSign size={14} /> Detailed Description
             </label>
-            <textarea 
+            <textarea
               ref={textAreaRef}
               className={`${inputBaseStyle} min-h-[150px] font-medium leading-relaxed ${errors.description ? 'border-red-500' : inputActiveStyle} ${isViewMode && inputDisabledStyle}`}
-              value={formData.description} 
-              onChange={handleDescriptionChange} 
+              value={formData.description}
+              onChange={handleDescriptionChange}
               disabled={isViewMode}
               placeholder="Describe requirements..."
             />
             {errors.description && <p className="text-red-500 text-xs font-bold ml-1">{errors.description}</p>}
-            
+
             {showMentionList && !isViewMode && (
               <div className="absolute z-50 bg-white dark:bg-gray-800 shadow-2xl rounded-xl border border-gray-100 dark:border-gray-700 w-64 max-h-48 overflow-y-auto" style={{ top: mentionPos.top, left: mentionPos.left }}>
                 {staffList.filter(s => s.name.toLowerCase().includes(mentionQuery.toLowerCase())).map(s => (
@@ -481,64 +481,64 @@ export default function TaskFormPage({ user, activeProjectId }) {
         {/* ⭐ TIMING & DATES SECTION      */}
         {/* ============================== */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-gray-100 dark:border-gray-700">
-            <div className="space-y-2">
-              <label className={labelStyle}><Calendar size={14}/> Start Date <span className="text-red-500"></span></label>
-              <input 
-                type="datetime-local" 
-                className={`w-full p-4 border rounded-2xl font-bold text-sm outline-none transition-all text-gray-900 dark:text-white ${errors.startDate ? 'border-red-500' : inputActiveStyle} ${isViewMode && inputDisabledStyle}`}
-                value={formData.startDate} 
-                onChange={(e) => {
-                  setFormData({ ...formData, startDate: e.target.value });
-                  if (errors.startDate) setErrors(prev => ({ ...prev, startDate: null }));
-                }}
-                disabled={isViewMode}
-              />
-              {errors.startDate && <p className="text-red-500 text-xs font-bold ml-1">{errors.startDate}</p>}
-            </div>
+          <div className="space-y-2">
+            <label className={labelStyle}><Calendar size={14} /> Start Date <span className="text-red-500"></span></label>
+            <input
+              type="datetime-local"
+              className={`w-full p-4 border rounded-2xl font-bold text-sm outline-none transition-all text-gray-900 dark:text-white ${errors.startDate ? 'border-red-500' : inputActiveStyle} ${isViewMode && inputDisabledStyle}`}
+              value={formData.startDate}
+              onChange={(e) => {
+                setFormData({ ...formData, startDate: e.target.value });
+                if (errors.startDate) setErrors(prev => ({ ...prev, startDate: null }));
+              }}
+              disabled={isViewMode}
+            />
+            {errors.startDate && <p className="text-red-500 text-xs font-bold ml-1">{errors.startDate}</p>}
+          </div>
 
-            <div className="space-y-2">
-              <label className={labelStyle}><Clock size={14}/> Estimated Hours <span className="text-red-500">*</span></label>
-              <input 
-                type="number" 
-                min="0.5"
-                step="0.5"
-                placeholder="e.g. 10.5"
-                className={`w-full p-4 border rounded-2xl font-bold text-sm outline-none transition-all text-gray-900 dark:text-white ${errors.hours ? 'border-red-500' : inputActiveStyle} ${isViewMode && inputDisabledStyle}`}
-                value={formData.hours} 
-                onChange={(e) => {
-                  setFormData({ ...formData, hours: e.target.value });
-                  if (errors.hours) setErrors(prev => ({ ...prev, hours: null }));
-                }}
-                disabled={isViewMode}
-              />
-              {errors.hours && <p className="text-red-500 text-xs font-bold ml-1">{errors.hours}</p>}
-            </div>
+          <div className="space-y-2">
+            <label className={labelStyle}><Clock size={14} /> Estimated Hours <span className="text-red-500">*</span></label>
+            <input
+              type="number"
+              min="0.5"
+              step="0.5"
+              placeholder="e.g. 10.5"
+              className={`w-full p-4 border rounded-2xl font-bold text-sm outline-none transition-all text-gray-900 dark:text-white ${errors.hours ? 'border-red-500' : inputActiveStyle} ${isViewMode && inputDisabledStyle}`}
+              value={formData.hours}
+              onChange={(e) => {
+                setFormData({ ...formData, hours: e.target.value });
+                if (errors.hours) setErrors(prev => ({ ...prev, hours: null }));
+              }}
+              disabled={isViewMode}
+            />
+            {errors.hours && <p className="text-red-500 text-xs font-bold ml-1">{errors.hours}</p>}
+          </div>
 
-            <div className="space-y-2">
-              <label className={labelStyle}><Calendar size={14}/> Calculated End Date</label>
-              <input 
-                type="datetime-local" 
-                className={`w-full p-4 border border-transparent rounded-2xl font-bold text-sm outline-none transition-all text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400 cursor-not-allowed`}
-                value={formData.endDate} 
-                readOnly
-                title="Auto-calculated based on start date, hours, and company timings"
-              />
-              <p className="text-[10px] text-gray-400 font-bold ml-1 italic">*Skips holidays & non-working hours</p>
-            </div>
+          <div className="space-y-2">
+            <label className={labelStyle}><Calendar size={14} /> Calculated End Date</label>
+            <input
+              type="datetime-local"
+              className={`w-full p-4 border border-transparent rounded-2xl font-bold text-sm outline-none transition-all text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400 cursor-not-allowed`}
+              value={formData.endDate}
+              readOnly
+              title="Auto-calculated based on start date, hours, and company timings"
+            />
+            <p className="text-[10px] text-gray-400 font-bold ml-1 italic">*Skips holidays & non-working hours</p>
+          </div>
         </div>
 
         {/* ============================== */}
         {/* ⭐ SUB-TASKS (CHECKLIST)       */}
         {/* ============================== */}
         <div className="space-y-4 pt-6 border-t border-gray-100 dark:border-gray-700">
-          <h3 className={labelStyle}><CheckSquare size={16}/> Checklist / Sub-Tasks</h3>
-          
+          <h3 className={labelStyle}><CheckSquare size={16} /> Checklist / Sub-Tasks</h3>
+
           <div className="space-y-3">
             {subTasks.map((task, index) => (
               <div key={task.id || task._id || index} className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${task.isCompleted ? 'bg-green-50/50 border-green-100 dark:bg-green-900/10 dark:border-green-900/30' : 'bg-gray-50 border-gray-100 dark:bg-gray-800 dark:border-gray-700'}`}>
-                <input 
-                  type="checkbox" 
-                  checked={task.isCompleted} 
+                <input
+                  type="checkbox"
+                  checked={task.isCompleted}
                   onChange={() => toggleSubTask(task.id || task._id)}
                   disabled={!canUpdate && isViewMode}
                   className="w-5 h-5 accent-green-500 cursor-pointer"
@@ -556,8 +556,8 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
             {!isViewMode && (
               <div className="flex gap-2 items-center mt-2">
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   placeholder="Add a new sub-task..."
                   value={newSubTaskTitle}
                   onChange={(e) => setNewSubTaskTitle(e.target.value)}
@@ -565,7 +565,7 @@ export default function TaskFormPage({ user, activeProjectId }) {
                   className="flex-1 p-3 text-sm bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 dark:text-white"
                 />
                 <button type="button" onClick={handleAddSubTask} className="p-3 bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400 rounded-xl hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-colors font-bold flex items-center gap-1 text-sm">
-                  <Plus size={16}/> Add
+                  <Plus size={16} /> Add
                 </button>
               </div>
             )}
@@ -576,66 +576,66 @@ export default function TaskFormPage({ user, activeProjectId }) {
         {/* META DETAILS                   */}
         {/* ============================== */}
         <div className={`grid grid-cols-1 ${gridColumnsClass} gap-6 pt-6 border-t border-gray-100 dark:border-gray-700`}>
+          <div className="space-y-2">
+            <label className={labelStyle}>Current Status</label>
+            <select
+              className={`w-full p-4 border border-gray-100 dark:border-gray-700 rounded-2xl font-bold outline-none text-gray-900 dark:text-white transition-colors ${isViewMode ? inputDisabledStyle : inputActiveStyle + ' cursor-pointer'}`}
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              disabled={isViewMode}
+              required
+            >
+              {statusList.length === 0 && <option value="">No Active Statuses</option>}
+              {statusList.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+            </select>
+          </div>
+
+          {(canUpdate || isViewMode) && (
             <div className="space-y-2">
-              <label className={labelStyle}>Current Status</label>
-              <select 
+              <label className={labelStyle}>Responsible Staff</label>
+              <select
                 className={`w-full p-4 border border-gray-100 dark:border-gray-700 rounded-2xl font-bold outline-none text-gray-900 dark:text-white transition-colors ${isViewMode ? inputDisabledStyle : inputActiveStyle + ' cursor-pointer'}`}
-                value={formData.status} 
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })} 
+                value={formData.assignedTo}
+                onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
                 disabled={isViewMode}
                 required
               >
-                {statusList.length === 0 && <option value="">No Active Statuses</option>}
-                {statusList.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+                <option value="">Unassigned</option>
+                {staffList.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
               </select>
             </div>
+          )}
 
-            {(canUpdate || isViewMode) && (
-              <div className="space-y-2">
-                <label className={labelStyle}>Responsible Staff</label>
-                <select 
-                  className={`w-full p-4 border border-gray-100 dark:border-gray-700 rounded-2xl font-bold outline-none text-gray-900 dark:text-white transition-colors ${isViewMode ? inputDisabledStyle : inputActiveStyle + ' cursor-pointer'}`}
-                  value={formData.assignedTo} 
-                  onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                  disabled={isViewMode}
-                  required
-                >
-                  <option value="">Unassigned</option>
-                  {staffList.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
-                </select>
-              </div>
-            )}
-
-            {isIssueMode && (
-              <div className="space-y-2">
-                <label className={labelStyle}>Priority Level</label>
-                <select 
-                  className={`w-full p-4 border border-gray-100 dark:border-gray-700 rounded-2xl font-bold outline-none text-gray-900 dark:text-white transition-colors ${isViewMode ? inputDisabledStyle : inputActiveStyle + ' cursor-pointer'}`}
-                  value={formData.priority} 
-                  onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                  disabled={isViewMode}
-                  required
-                >
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                  <option value="Critical">Critical</option>
-                </select>
-              </div>
-            )}
+          {isIssueMode && (
+            <div className="space-y-2">
+              <label className={labelStyle}>Priority Level</label>
+              <select
+                className={`w-full p-4 border border-gray-100 dark:border-gray-700 rounded-2xl font-bold outline-none text-gray-900 dark:text-white transition-colors ${isViewMode ? inputDisabledStyle : inputActiveStyle + ' cursor-pointer'}`}
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                disabled={isViewMode}
+                required
+              >
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+              </select>
+            </div>
+          )}
         </div>
 
         {/* ============================== */}
         {/* MEDIA UPLOADS                  */}
         {/* ============================== */}
         <div className="space-y-8 pt-10 border-t border-gray-100 dark:border-gray-700">
-          
+
           <div className="space-y-4">
             <h3 className={labelStyle}>
-              <ImageIcon size={16}/> Photos (Max 5MB, Max 5 Files)
+              <ImageIcon size={16} /> Photos (Max 5MB, Max 5 Files)
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-              
+
               {!isViewMode && (
                 <div className="relative aspect-square bg-primary-50 dark:bg-primary-900/20 border-2 border-dashed border-primary-200 dark:border-primary-800 rounded-2xl flex flex-col items-center justify-center text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors">
                   <input type="file" multiple accept="image/*" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" />
@@ -645,24 +645,24 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
               {existingImages.map((url, i) => (
                 <div key={`ei-${i}`} className="group relative aspect-square rounded-2xl overflow-hidden shadow-md">
-                   <img src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${url}`} className="w-full h-full object-cover" alt=""/>
-                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <button type="button" onClick={() => setSelectedMedia({url: `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${url}`, type: 'image'})} className="p-2 text-white"><Maximize2 size={18}/></button>
-                      {!isViewMode && <button type="button" onClick={() => setExistingImages(prev => prev.filter((_, idx) => idx !== i))} className="p-2 text-red-400 hover:text-red-500"><Trash2 size={18}/></button>}
-                   </div>
+                  <img src={`${import.meta.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${url}`} className="w-full h-full object-cover" alt="" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <button type="button" onClick={() => setSelectedMedia({ url: `${import.meta.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${url}`, type: 'image' })} className="p-2 text-white"><Maximize2 size={18} /></button>
+                    {!isViewMode && <button type="button" onClick={() => setExistingImages(prev => prev.filter((_, idx) => idx !== i))} className="p-2 text-red-400 hover:text-red-500"><Trash2 size={18} /></button>}
+                  </div>
                 </div>
               ))}
 
               {previews.map((url, i) => (
                 <div key={`pi-${i}`} className="group relative aspect-square rounded-2xl overflow-hidden shadow-md">
-                   <img src={url} className="w-full h-full object-cover" alt=""/>
-                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <button type="button" onClick={() => setSelectedMedia({url: url, type: 'image'})} className="p-2 text-white"><Maximize2 size={18}/></button>
-                      <button type="button" onClick={() => {
-                        setImages(prev => prev.filter((_, idx) => idx !== i));
-                        setPreviews(prev => prev.filter((_, idx) => idx !== i));
-                      }} className="p-2 text-red-400 hover:text-red-500"><Trash2 size={18}/></button>
-                   </div>
+                  <img src={url} className="w-full h-full object-cover" alt="" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                    <button type="button" onClick={() => setSelectedMedia({ url: url, type: 'image' })} className="p-2 text-white"><Maximize2 size={18} /></button>
+                    <button type="button" onClick={() => {
+                      setImages(prev => prev.filter((_, idx) => idx !== i));
+                      setPreviews(prev => prev.filter((_, idx) => idx !== i));
+                    }} className="p-2 text-red-400 hover:text-red-500"><Trash2 size={18} /></button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -670,10 +670,10 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
           <div className="space-y-4 pt-6">
             <h3 className={labelStyle}>
-              <Video size={16}/> Videos (Max 50MB, Max 3 Files)
+              <Video size={16} /> Videos (Max 50MB, Max 3 Files)
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              
+
               {!isViewMode && (
                 <div className="relative h-48 bg-purple-50 dark:bg-purple-900/20 border-2 border-dashed border-purple-200 dark:border-purple-800 rounded-3xl flex flex-col items-center justify-center text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors">
                   <input type="file" multiple accept="video/*" onChange={handleVideoChange} className="absolute inset-0 opacity-0 cursor-pointer" />
@@ -684,11 +684,11 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
               {existingVideos.map((path, i) => (
                 <div key={`ev-${i}`} className="group relative h-48 rounded-3xl overflow-hidden bg-black shadow-xl">
-                  <video src={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${path}`} className="w-full h-full object-cover opacity-70" />
+                  <video src={`${import.meta.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${path}`} className="w-full h-full object-cover opacity-70" />
                   <div className="absolute top-2 right-2 flex gap-2">
-                    <button type="button" onClick={() => setSelectedMedia({url: `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${path}`, type: 'video'})} className="bg-white/20 p-2 rounded-lg backdrop-blur-md hover:bg-white/40 transition-colors"><Maximize2 size={16}/></button>
+                    <button type="button" onClick={() => setSelectedMedia({ url: `${import.meta.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${path}`, type: 'video' })} className="bg-white/20 p-2 rounded-lg backdrop-blur-md hover:bg-white/40 transition-colors"><Maximize2 size={16} /></button>
                     {!isViewMode && (
-                      <button type="button" onClick={() => setExistingVideos(prev => prev.filter((_, idx) => idx !== i))} className="bg-red-500 p-2 rounded-lg text-white hover:bg-red-600 transition-colors"><Trash2 size={16}/></button>
+                      <button type="button" onClick={() => setExistingVideos(prev => prev.filter((_, idx) => idx !== i))} className="bg-red-500 p-2 rounded-lg text-white hover:bg-red-600 transition-colors"><Trash2 size={16} /></button>
                     )}
                   </div>
                 </div>
@@ -698,11 +698,11 @@ export default function TaskFormPage({ user, activeProjectId }) {
                   <video src={url} className="w-full h-full object-cover opacity-70" />
                   <div className="absolute top-2 left-2 bg-primary-600 text-[8px] text-white px-2 py-1 rounded-full font-bold">NEW UPLOAD</div>
                   <div className="absolute top-2 right-2 flex gap-2">
-                    <button type="button" onClick={() => setSelectedMedia({url: url, type: 'video'})} className="bg-white/20 p-2 rounded-lg backdrop-blur-md hover:bg-white/40 transition-colors"><Maximize2 size={16}/></button>
+                    <button type="button" onClick={() => setSelectedMedia({ url: url, type: 'video' })} className="bg-white/20 p-2 rounded-lg backdrop-blur-md hover:bg-white/40 transition-colors"><Maximize2 size={16} /></button>
                     <button type="button" onClick={() => {
                       setVideos(prev => prev.filter((_, idx) => idx !== i));
                       setVideoPreviews(prev => prev.filter((_, idx) => idx !== i));
-                    }} className="bg-red-500 p-2 rounded-lg text-white hover:bg-red-600 transition-colors"><Trash2 size={16}/></button>
+                    }} className="bg-red-500 p-2 rounded-lg text-white hover:bg-red-600 transition-colors"><Trash2 size={16} /></button>
                   </div>
                 </div>
               ))}
@@ -712,8 +712,8 @@ export default function TaskFormPage({ user, activeProjectId }) {
 
         {isViewMode && !canUpdate ? (
           <div className="pt-8 border-t border-gray-100 dark:border-gray-700 mt-8 flex justify-end">
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={() => navigate(returnPath)}
               className="px-10 py-4 bg-gray-900 dark:bg-gray-700 text-white font-bold rounded-xl hover:bg-gray-800 dark:hover:bg-gray-600 transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-lg"
             >
@@ -722,12 +722,12 @@ export default function TaskFormPage({ user, activeProjectId }) {
             </button>
           </div>
         ) : (
-          <FormActionButtons 
-            loading={loading} 
+          <FormActionButtons
+            loading={loading}
             isEditMode={isEditMode || isViewMode} // If in viewMode and reached here, they updated the checklist
             submitText={isViewMode ? `Save Checklist` : (isEditMode ? `Update ${typeLabel}` : `Save ${typeLabel}`)}
             cancelText="cancel"
-            cancelPath={returnPath} 
+            cancelPath={returnPath}
           />
         )}
 
@@ -736,11 +736,11 @@ export default function TaskFormPage({ user, activeProjectId }) {
       {/* Media Lightbox */}
       {selectedMedia && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 backdrop-blur-xl" onClick={() => setSelectedMedia(null)}>
-          <button className="absolute top-6 right-6 text-white hover:text-gray-300 transition-colors"><X size={32}/></button>
+          <button className="absolute top-6 right-6 text-white hover:text-gray-300 transition-colors"><X size={32} /></button>
           {selectedMedia.type === 'video' ? (
             <video src={selectedMedia.url} controls autoPlay className="max-w-full max-h-[80vh] rounded-3xl shadow-2xl" />
           ) : (
-            <img src={selectedMedia.url} className="max-w-full max-h-[80vh] rounded-3xl object-contain shadow-2xl" alt=""/>
+            <img src={selectedMedia.url} className="max-w-full max-h-[80vh] rounded-3xl object-contain shadow-2xl" alt="" />
           )}
         </div>
       )}
